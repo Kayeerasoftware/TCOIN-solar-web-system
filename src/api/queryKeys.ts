@@ -1,0 +1,20 @@
+/** One place for React Query keys so invalidation stays consistent. */
+export const qk = {
+  me: ['me'] as const,
+  company: ['company-profile'] as const,
+  products: (params?: unknown) => ['products', params] as const,
+  product: (id: string) => ['product', id] as const,
+  leads: (params?: unknown) => ['leads', params] as const,
+  quotes: (params?: unknown) => ['quotes', params] as const,
+  quote: (id: string) => ['quote', id] as const,
+  designs: (id: string) => ['design', id] as const,
+  projects: (params?: unknown) => ['projects', params] as const,
+  project: (id: string) => ['project', id] as const,
+  stock: (params?: unknown) => ['stock', params] as const,
+  invoices: (params?: unknown) => ['invoices', params] as const,
+  receipts: (params?: unknown) => ['receipts', params] as const,
+  vouchers: (params?: unknown) => ['vouchers', params] as const,
+  deliveryNotes: (params?: unknown) => ['delivery-notes', params] as const,
+  tickets: (params?: unknown) => ['tickets', params] as const,
+  report: (name: string, params?: unknown) => ['report', name, params] as const,
+};

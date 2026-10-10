@@ -1,0 +1,14 @@
+name: Deploy
+on:
+  push:
+    tags: ['v*']
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci && npm run build
+      # Upload dist/ to your host (container registry, object storage + CDN, or static host).
+      # Build with VITE_API_URL set for the target environment.

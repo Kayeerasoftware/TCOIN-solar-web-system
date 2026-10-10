@@ -1,0 +1,13 @@
+:root {
+  --brand-green: #1d6434;
+  --brand-indigo: #3b3a93;
+  --brand-red: #ed1c24;
+  --brand-brown: #5a3114;
+  --brand-accent: #f5a623;
+  --ink: #14202e;
+  --ink-muted: #5a6878;
+  --line: #d9dee5;
+  --surface: #ffffff;
+  --surface-alt: #f4f6f9;
+  --radius: 8px;
+}

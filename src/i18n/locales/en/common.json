@@ -1,0 +1,21 @@
+{
+  "app": {
+    "name": "TCOIN SOLAR UG",
+    "tagline": "We Plan and Do"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "print": "Print",
+    "download": "Download PDF",
+    "retry": "Try again"
+  },
+  "states": {
+    "loading": "Loading",
+    "empty": "Nothing here yet",
+    "error": "Something went wrong",
+    "notPermitted": "You do not have permission to see this page",
+    "notFound": "We could not find that page"
+  }
+}

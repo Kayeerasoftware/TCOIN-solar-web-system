@@ -1,0 +1,2 @@
+# Conventional commits: feat|fix|docs|refactor|test|chore(scope): message
+grep -qE "^(feat|fix|docs|refactor|test|chore|perf|build|ci)(\(.+\))?: .+" "$1" || { echo "Use a conventional commit message"; exit 1; }
