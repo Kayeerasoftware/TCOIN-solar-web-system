@@ -1,4 +1,13 @@
-// Renders the verification QR for an issued document. Add a QR library (for example qrcode) and encode `${origin}/verify/${code}`.
-export function QrCode({ code }: { code: string }) {
-  return <div className="flex h-16 w-16 items-center justify-center border text-[8px]">QR {code}</div>;
+/** Renders a QR code placeholder for an issued document verification URL.
+ *  In production, swap the inner div for a real QR library (e.g. qrcode.react). */
+export function QrCode({ value, size = 64 }: { value: string; size?: number }) {
+  return (
+    <div
+      className="flex items-center justify-center border border-ink bg-white text-[7px] text-ink-muted"
+      style={{ width: size, height: size }}
+      title={value}
+    >
+      QR
+    </div>
+  );
 }

@@ -1,11 +1,36 @@
+@import 'tailwindcss';
 @import './tokens.css';
 @import './print.css';
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+
+@theme {
+  --color-brand-green: #1d6434;
+  --color-brand-indigo: #3b3a93;
+  --color-brand-red: #ed1c24;
+  --color-brand-brown: #5a3114;
+  --color-brand-accent: #f5a623;
+  --color-ink: #14202e;
+  --color-ink-muted: #5a6878;
+  --color-line: #d9dee5;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f4f6f9;
+  --font-family-sans: Inter, system-ui, 'Segoe UI', Arial, sans-serif;
+  --font-family-serif: Georgia, 'Times New Roman', serif;
+}
 
 @layer base {
-  html { color: var(--ink); background: var(--surface-alt); -webkit-text-size-adjust: 100%; }
-  body { margin: 0; font-family: Inter, system-ui, 'Segoe UI', Arial, sans-serif; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
-  :focus-visible { outline: 2px solid var(--brand-indigo); outline-offset: 2px; }
+  html {
+    color: var(--ink);
+    background: var(--surface-alt);
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    margin: 0;
+    font-family: Inter, system-ui, 'Segoe UI', Arial, sans-serif;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  :focus-visible {
+    outline: 2px solid var(--brand-indigo);
+    outline-offset: 2px;
+  }
 }
