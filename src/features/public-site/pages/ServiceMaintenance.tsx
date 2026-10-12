@@ -1,57 +1,47 @@
-import { Link } from 'react-router-dom';
+import { Card } from '@/components/ui/Card';
+import { ServicePage } from '../components/ServicePage';
 
 const plans = [
-  { name: 'Basic', freq: 'Annual', items: ['Annual inspection', 'Cleaning', 'Performance report'] },
-  {
-    name: 'Standard',
-    freq: 'Bi-annual',
-    items: ['Bi-annual visits', 'Cleaning & testing', 'Priority support', 'Performance report'],
-  },
-  {
-    name: 'Premium',
-    freq: 'Quarterly',
-    items: [
-      'Quarterly visits',
-      'Cleaning & testing',
-      '24/7 hotline',
-      'Warranty management',
-      'Performance report',
-    ],
-  },
+  { plan: 'Basic', visits: 1, response: '48 hours' },
+  { plan: 'Standard', visits: 2, response: '24 hours' },
+  { plan: 'Premium', visits: 4, response: '4 hours' },
 ];
 
 export default function ServiceMaintenance() {
   return (
-    <div className="mx-auto max-w-5xl px-4 py-12">
-      <h1 className="text-3xl font-bold text-brand-green">Maintenance Plans</h1>
-      <p className="mt-4 text-ink-muted">
-        Protect your investment with a scheduled maintenance contract. Our technicians keep your system
-        running at peak efficiency.
-      </p>
-      <div className="mt-10 grid gap-6 sm:grid-cols-3">
-        {plans.map((p) => (
-          <div key={p.name} className="rounded-lg border border-line bg-white p-6">
-            <h2 className="text-xl font-bold text-brand-green">{p.name}</h2>
-            <p className="mt-1 text-sm text-ink-muted">{p.freq} visits</p>
-            <ul className="mt-4 space-y-2">
-              {p.items.map((i) => (
-                <li key={i} className="flex gap-2 text-sm">
-                  <span className="text-brand-green">✓</span>
-                  {i}
-                </li>
+    <ServicePage
+      title="Maintenance plans"
+      intro="Keep output high and get a fast response to faults."
+      steps={[
+        'Choose a plan',
+        'We schedule your visits',
+        'A technician inspects your system',
+        'You receive a report',
+      ]}
+      gets={['Preventive visits', 'Warranty tracking', 'Priority response']}
+      extra={
+        <Card title="Plans">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left">
+                <th>Plan</th>
+                <th>Visits per year</th>
+                <th>Response</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plans.map((p) => (
+                <tr key={p.plan} className="border-t border-line">
+                  <td className="py-2">{p.plan}</td>
+                  <td>{p.visits}</td>
+                  <td>{p.response}</td>
+                </tr>
               ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-      <div className="mt-10">
-        <Link
-          to="/contact"
-          className="rounded-md bg-brand-accent px-6 py-3 font-bold text-ink hover:brightness-95"
-        >
-          Get a quote
-        </Link>
-      </div>
-    </div>
+            </tbody>
+          </table>
+          <p className="mt-2 text-xs text-ink-muted">Prices are given in your quote.</p>
+        </Card>
+      }
+    />
   );
 }

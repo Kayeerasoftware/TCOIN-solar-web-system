@@ -1,35 +1,54 @@
-import { Link } from 'react-router-dom';
-
-const REPORTS = [
-  { name: 'pipeline', label: 'Sales pipeline' },
-  { name: 'conversion_by_source', label: 'Conversion by source' },
-  { name: 'quote_win_rate', label: 'Quote win rate' },
-  { name: 'project_status', label: 'Project status' },
-  { name: 'project_margin', label: 'Project margin' },
-  { name: 'stock_turnover', label: 'Stock turnover' },
-  { name: 'reorder_alerts', label: 'Reorder alerts' },
-  { name: 'receivables_ageing', label: 'Receivables ageing' },
-  { name: 'revenue_by_service', label: 'Revenue by service' },
-  { name: 'ticket_sla', label: 'Ticket SLA' },
-  { name: 'warranty_expiry', label: 'Warranty expiry' },
-  { name: 'contract_renewals', label: 'Contract renewals' },
-];
+import { useQuery } from '@tanstack/react-query';
+import { getSummary } from '@/api/endpoints/platform';
+import { StatCard } from '@/components/data/StatCard';
+import { DataTable } from '@/components/data/DataTable';
+import { ErrorState } from '@/components/feedback/ErrorState';
+import { LoadingState } from '@/components/feedback/LoadingState';
+import { Card } from '@/components/ui/Card';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { formatMoney } from '@/lib/money';
 
 export default function ReportsDashboard() {
+  useDocumentTitle('Dashboard');
+  const q = useQuery({ queryKey: ['report', 'summary'], queryFn: getSummary });
+  if (q.isLoading) return <LoadingState />;
+  if (q.isError || !q.data)
+    return <ErrorState message="Could not load the dashboard." onRetry={() => void q.refetch()} />;
+  const s = q.data;
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-brand-green">Reports</h1>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {REPORTS.map((r) => (
-          <Link
-            key={r.name}
-            to={`/console/reports/${r.name}`}
-            className="rounded-lg border border-line bg-white p-5 hover:shadow-md transition-shadow"
-          >
-            <p className="font-bold text-brand-green">{r.label}</p>
-            <p className="mt-1 text-xs text-ink-muted">{r.name}</p>
-          </Link>
-        ))}
+    <div className="space-y-4">
+      <h1 className="text-2xl font-bold text-brand-green">Dashboard</h1>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Open quotes" value={String(s.open_quotes)} />
+        <StatCard label="Pipeline value" value={formatMoney(s.pipeline_value)} />
+        <StatCard label="Receivables" value={formatMoney(s.receivables)} />
+        <StatCard label="Low-stock items" value={String(s.low_stock.length)} />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card title="Leads by stage">
+          <ul>
+            {Object.entries(s.leads_by_status).map(([k, v]) => (
+              <li key={k} className="flex justify-between border-b border-line py-1">
+                <span>{k.replace('_', ' ')}</span>
+                <b>{v}</b>
+              </li>
+            ))}
+          </ul>
+        </Card>
+        <div>
+          <h2 className="mb-2 font-bold">Low stock</h2>
+          <DataTable
+            rows={s.low_stock}
+            rowKey={(r) => r.sku}
+            emptyTitle="Nothing is low"
+            columns={[
+              { header: 'SKU', cell: (r) => r.sku },
+              { header: 'Item', cell: (r) => r.name },
+              { header: 'Available', align: 'right', cell: (r) => r.available },
+              { header: 'Reorder at', align: 'right', cell: (r) => r.reorder_level },
+            ]}
+          />
+        </div>
       </div>
     </div>
   );

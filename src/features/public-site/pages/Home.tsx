@@ -1,123 +1,114 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { FormField } from '@/components/forms/FormField';
+import { TextInput } from '@/components/forms/controls';
+import { Button } from '@/components/ui/Button';
+import { ButtonLink } from '@/components/ui/ButtonLink';
+import { Card } from '@/components/ui/Card';
 import { useCompanyProfile } from '@/hooks/useCompanyProfile';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const services = [
   {
     to: '/services/design',
-    icon: '☀️',
-    title: 'Solar Design',
-    desc: 'Custom system sizing and engineering for homes and businesses.',
+    title: 'Design',
+    text: 'Site survey, sizing, single-line diagrams and a priced bill of materials.',
   },
   {
     to: '/services/installation',
-    icon: '🔧',
     title: 'Installation',
-    desc: 'Professional installation by certified technicians.',
+    text: 'Certified crews, safety checklists and commissioning records.',
   },
   {
     to: '/services/maintenance',
-    icon: '🛡️',
-    title: 'Maintenance Plans',
-    desc: 'Keep your system performing at peak efficiency.',
+    title: 'Maintenance',
+    text: 'Service plans, warranty tracking and fast fault response.',
   },
   {
     to: '/services/consultancy',
-    icon: '💡',
     title: 'Consultancy',
-    desc: 'Expert advice on energy independence and cost savings.',
+    text: 'Energy audits, feasibility studies and design reviews.',
   },
 ];
 
-const stats = [
-  { label: 'Systems installed', value: '500+' },
-  { label: 'Happy customers', value: '480+' },
-  { label: 'Years experience', value: '10+' },
-  { label: 'Districts served', value: '20+' },
-];
-
 export default function Home() {
+  useDocumentTitle('Home');
+  const navigate = useNavigate();
   const p = useCompanyProfile();
+  const [bill, setBill] = useState('450000');
   return (
-    <div>
-      {/* Hero */}
-      <section className="bg-brand-green px-4 py-20 text-center text-white">
-        <h1 className="text-4xl font-bold leading-tight">{p.division}</h1>
-        <p className="mt-3 text-lg text-green-100">{p.tagline}</p>
-        <p className="mx-auto mt-4 max-w-xl text-green-200">
-          Uganda's trusted solar energy partner — design, supply, install, and maintain.
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-4">
-          <Link
-            to="/calculator"
-            className="rounded-md bg-brand-accent px-6 py-3 font-bold text-ink hover:brightness-95"
-          >
-            Estimate my savings
-          </Link>
-          <Link
-            to="/store"
-            className="rounded-md border border-white px-6 py-3 font-bold text-white hover:bg-white/10"
-          >
-            Shop components
-          </Link>
+    <div className="mx-auto max-w-6xl space-y-8 p-4">
+      <section className="grid items-center gap-6 py-6 md:grid-cols-2">
+        <div>
+          <h1 className="text-4xl font-extrabold leading-tight text-brand-green">
+            Reliable solar for your home or business
+          </h1>
+          <p className="mt-3 text-lg text-ink-muted">
+            {p.tagline}. Solar design, installation, maintenance, consultancy and components from one team.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <ButtonLink to="/calculator">Get my free estimate</ButtonLink>
+            <ButtonLink to="/store" variant="secondary">
+              Shop components
+            </ButtonLink>
+          </div>
         </div>
+        <Card title="How much could you save?">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              navigate(`/calculator?bill=${bill}`);
+            }}
+            aria-label="Quick estimate"
+          >
+            <FormField label="Monthly electricity bill (UGX)" htmlFor="quick-bill">
+              <TextInput
+                id="quick-bill"
+                inputMode="numeric"
+                value={bill}
+                onChange={(e) => setBill(e.target.value.replace(/[^\d]/g, ''))}
+              />
+            </FormField>
+            <Button type="submit" className="w-full">
+              Calculate
+            </Button>
+          </form>
+        </Card>
       </section>
-
-      {/* Stats */}
-      <section className="bg-white px-4 py-10">
-        <div className="mx-auto grid max-w-4xl grid-cols-2 gap-6 sm:grid-cols-4">
-          {stats.map((s) => (
-            <div key={s.label} className="text-center">
-              <div className="text-3xl font-bold text-brand-green">{s.value}</div>
-              <div className="mt-1 text-sm text-ink-muted">{s.label}</div>
-            </div>
+      <section aria-labelledby="services-h">
+        <h2 id="services-h" className="mb-3 text-2xl font-bold">
+          Our services
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {services.map((s) => (
+            <Card key={s.to}>
+              <h3 className="mb-1 font-bold">
+                <Link to={s.to} className="text-brand-green hover:underline">
+                  {s.title}
+                </Link>
+              </h3>
+              <p className="text-sm text-ink-muted">{s.text}</p>
+            </Card>
           ))}
         </div>
       </section>
-
-      {/* Services */}
-      <section className="px-4 py-12">
-        <div className="mx-auto max-w-5xl">
-          <h2 className="mb-8 text-center text-2xl font-bold">What we do</h2>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {services.map((s) => (
-              <Link
-                key={s.to}
-                to={s.to}
-                className="rounded-lg border border-line bg-white p-5 text-center hover:shadow-md transition-shadow"
-              >
-                <div className="text-4xl">{s.icon}</div>
-                <h3 className="mt-3 font-bold text-brand-green">{s.title}</h3>
-                <p className="mt-2 text-sm text-ink-muted">{s.desc}</p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="bg-brand-indigo px-4 py-14 text-center text-white">
-        <h2 className="text-2xl font-bold">Ready to go solar?</h2>
-        <p className="mt-2 text-indigo-200">Use our free calculator to see how much you could save.</p>
-        <Link
-          to="/calculator"
-          className="mt-6 inline-block rounded-md bg-brand-accent px-8 py-3 font-bold text-ink hover:brightness-95"
-        >
-          Start the calculator →
-        </Link>
-      </section>
-
-      {/* What we do list */}
-      <section className="bg-white px-4 py-12">
-        <div className="mx-auto max-w-3xl">
-          <h2 className="mb-6 text-xl font-bold">Our capabilities</h2>
-          <ul className="space-y-2">
-            {p.what_we_do.map((item) => (
-              <li key={item} className="flex gap-2 text-sm text-ink">
-                <span className="mt-0.5 text-brand-green">✓</span>
-                {item}
-              </li>
+      <section aria-labelledby="what-h">
+        <h2 id="what-h" className="mb-3 text-2xl font-bold">
+          What TCOIN does
+        </h2>
+        <Card>
+          <ul className="list-disc space-y-1 pl-5">
+            {p.what_we_do.map((l) => (
+              <li key={l}>{l}</li>
             ))}
           </ul>
+        </Card>
+      </section>
+      <section className="rounded-lg border border-line bg-amber-50 p-6">
+        <h2 className="text-xl font-bold">Ready to start?</h2>
+        <p className="text-ink-muted">Talk to an engineer on {p.mobile}.</p>
+        <div className="mt-3">
+          <ButtonLink to="/contact">Request a quote</ButtonLink>
         </div>
       </section>
     </div>

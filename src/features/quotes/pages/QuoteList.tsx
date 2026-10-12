@@ -1,110 +1,75 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { api } from '@/api/client';
+import { listCustomers } from '@/api/endpoints/crm';
+import { listQuotes } from '@/api/endpoints/quotes';
 import { qk } from '@/api/queryKeys';
+import { DataTable } from '@/components/data/DataTable';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import { LoadingState } from '@/components/feedback/LoadingState';
-import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { ButtonLink } from '@/components/ui/ButtonLink';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { formatNumber } from '@/lib/money';
+import type { QuoteStatus } from '@/types/api';
 
-const STATUS_COLOR: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-600',
-  sent: 'bg-blue-50 text-blue-700',
-  accepted: 'bg-green-50 text-brand-green',
-  expired: 'bg-red-50 text-brand-red',
+const tone: Record<QuoteStatus, 'green' | 'amber' | 'red' | 'grey'> = {
+  draft: 'grey',
+  pending_approval: 'amber',
+  sent: 'green',
+  accepted: 'green',
+  rejected: 'red',
+  expired: 'red',
+  superseded: 'grey',
 };
 
 export default function QuoteList() {
-  const [status, setStatus] = useState('');
-  const { data, isLoading } = useQuery({
-    queryKey: qk.quotes({ status }),
-    queryFn: () =>
-      api
-        .get('/quotes', { params: { limit: 100, ...(status ? { status } : {}) } })
-        .then((r) => r.data.data ?? []),
-    staleTime: 30_000,
-  });
-
-  if (isLoading) return <LoadingState />;
-
-  const quotes: {
-    id: string;
-    quote_no: string;
-    status: string;
-    valid_until?: string;
-    currency: string;
-    version?: { total?: { amount: string } };
-  }[] = data ?? [];
-
+  useDocumentTitle('Quotes');
+  const quotes = useQuery({ queryKey: qk.quotes(), queryFn: listQuotes });
+  const customers = useQuery({ queryKey: ['customers'], queryFn: listCustomers });
+  if (quotes.isLoading) return <LoadingState />;
+  if (quotes.isError)
+    return <ErrorState message="Could not load quotes." onRetry={() => void quotes.refetch()} />;
+  const name = (id: string) => customers.data?.find((c) => c.id === id)?.display_name ?? '';
   return (
-    <div>
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-brand-green">Quotes</h1>
-        <Link to="/console/quotes/new">
-          <Button variant="secondary">+ New quote</Button>
-        </Link>
+        <ButtonLink to="/console/quotes/new">New quote</ButtonLink>
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {['', 'draft', 'sent', 'accepted', 'expired'].map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatus(s)}
-            className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${status === s ? 'bg-brand-green text-white' : 'bg-surface-alt text-ink-muted'}`}
-          >
-            {s || 'All'}
-          </button>
-        ))}
-      </div>
-      <div className="mt-6 rounded-lg border border-line bg-white overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="border-b border-line bg-surface-alt text-xs text-ink-muted">
-            <tr>
-              <th className="px-4 py-2 text-left">Quote #</th>
-              <th className="px-4 py-2 text-left">Status</th>
-              <th className="px-4 py-2 text-left">Valid until</th>
-              <th className="px-4 py-2 text-right">Total</th>
-              <th className="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {quotes.map((q) => (
-              <tr key={q.id} className="border-b border-line last:border-0 hover:bg-surface-alt">
-                <td className="px-4 py-2">
-                  <Link to={`/console/quotes/${q.id}`} className="text-brand-green underline">
-                    {q.quote_no}
-                  </Link>
-                </td>
-                <td className="px-4 py-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${STATUS_COLOR[q.status] ?? 'bg-gray-100'}`}
-                  >
-                    {q.status}
-                  </span>
-                </td>
-                <td className="px-4 py-2 text-ink-muted">
-                  {q.valid_until ? new Date(q.valid_until).toLocaleDateString() : '—'}
-                </td>
-                <td className="px-4 py-2 text-right font-medium">
-                  {q.currency} {q.version?.total ? Number(q.version.total.amount).toLocaleString() : '—'}
-                </td>
-                <td className="px-4 py-2 text-right">
-                  <Link to={`/console/quotes/${q.id}`}>
-                    <Button variant="secondary" className="py-0.5 text-xs">
-                      Open
-                    </Button>
-                  </Link>
-                </td>
-              </tr>
-            ))}
-            {quotes.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-ink-muted">
-                  No quotes found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        rows={quotes.data ?? []}
+        rowKey={(q) => q.id}
+        emptyTitle="No quotes yet"
+        emptyMessage="Create the first quote to issue a Proforma Invoice."
+        columns={[
+          {
+            header: 'Number',
+            cell: (q) => (
+              <Link to={`/console/quotes/${q.id}`} className="font-medium text-brand-green underline">
+                {q.proforma_no ? `Proforma ${q.proforma_no}` : q.quote_no}
+              </Link>
+            ),
+          },
+          { header: 'Customer', cell: (q) => name(q.customer_id) },
+          { header: 'Title', cell: (q) => q.document_title },
+          {
+            header: 'Status',
+            cell: (q) => <Badge tone={tone[q.status]}>{q.status.replace('_', ' ')}</Badge>,
+          },
+          { header: 'Total (UGX)', align: 'right', cell: (q) => formatNumber(q.total) },
+          {
+            header: 'Print',
+            cell: (q) =>
+              q.proforma_no ? (
+                <Link to={`/print/proforma/${q.id}`} className="text-brand-green underline">
+                  Print
+                </Link>
+              ) : (
+                <span className="text-ink-muted">Not issued</span>
+              ),
+          },
+        ]}
+      />
     </div>
   );
 }

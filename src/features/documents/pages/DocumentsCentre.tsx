@@ -1,84 +1,89 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { api } from '@/api/client';
+import { listReceipts } from '@/api/endpoints/documents';
+import { listQuotes } from '@/api/endpoints/quotes';
+import { qk } from '@/api/queryKeys';
+import { DataTable } from '@/components/data/DataTable';
 import { LoadingState } from '@/components/feedback/LoadingState';
-import { Button } from '@/components/ui/Button';
+import { ButtonLink } from '@/components/ui/ButtonLink';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { formatDate } from '@/lib/dates';
+import { formatNumber } from '@/lib/money';
 
 export default function DocumentsCentre() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['documents'],
-    queryFn: () =>
-      api
-        .get('/documents?limit=50')
-        .then((r) => r.data.data ?? [])
-        .catch(() => []),
-    staleTime: 30_000,
-  });
-
-  if (isLoading) return <LoadingState />;
-
-  const docs: { id: string; doc_type: string; title: string; created_at?: string }[] = data ?? [];
-
+  useDocumentTitle('Documents');
+  const quotes = useQuery({ queryKey: qk.quotes(), queryFn: listQuotes });
+  const receipts = useQuery({ queryKey: qk.receipts(), queryFn: listReceipts });
+  if (quotes.isLoading || receipts.isLoading) return <LoadingState />;
+  const proformas = (quotes.data ?? []).filter((q) => q.proforma_no);
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-brand-green">Documents centre</h1>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Link to="/console/documents/proforma/new">
-          <Button variant="secondary">+ Proforma invoice</Button>
-        </Link>
-        <Link to="/console/documents/receipt/new">
-          <Button variant="secondary">+ Receipt</Button>
-        </Link>
-        <Link to="/console/documents/voucher/new">
-          <Button variant="secondary">+ Payment voucher</Button>
-        </Link>
-        <Link to="/console/documents/delivery-note/new">
-          <Button variant="secondary">+ Delivery note</Button>
-        </Link>
-        <Link to="/console/documents/letter/new">
-          <Button variant="secondary">+ Letter</Button>
-        </Link>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-brand-green">Documents</h1>
+      <div className="flex flex-wrap gap-3">
+        <ButtonLink to="/console/quotes/new">New proforma invoice</ButtonLink>
+        <ButtonLink to="/console/documents/receipt/new" variant="secondary">
+          New receipt
+        </ButtonLink>
+        <ButtonLink to="/console/documents/voucher/new" variant="secondary">
+          New payment voucher
+        </ButtonLink>
+        <ButtonLink to="/console/documents/delivery-note/new" variant="secondary">
+          New delivery note
+        </ButtonLink>
+        <ButtonLink to="/console/documents/letter/new" variant="secondary">
+          New letter
+        </ButtonLink>
       </div>
-      <div className="mt-6 rounded-lg border border-line bg-white overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="border-b border-line bg-surface-alt text-xs text-ink-muted">
-            <tr>
-              <th className="px-4 py-2 text-left">Title</th>
-              <th className="px-4 py-2 text-left">Type</th>
-              <th className="px-4 py-2 text-left">Date</th>
-              <th className="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {docs.map((d) => (
-              <tr key={d.id} className="border-b border-line last:border-0 hover:bg-surface-alt">
-                <td className="px-4 py-2 font-medium">{d.title}</td>
-                <td className="px-4 py-2 capitalize text-ink-muted">{d.doc_type?.replace(/_/g, ' ')}</td>
-                <td className="px-4 py-2 text-ink-muted">
-                  {d.created_at ? new Date(d.created_at).toLocaleDateString() : '—'}
-                </td>
-                <td className="px-4 py-2 text-right">
-                  <a
-                    href={`/api/v1/documents/${d.id}/download`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-brand-green underline"
-                  >
-                    Download
-                  </a>
-                </td>
-              </tr>
-            ))}
-            {docs.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-ink-muted">
-                  No documents yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <section aria-labelledby="pf">
+        <h2 id="pf" className="mb-2 font-bold">
+          Proforma invoices
+        </h2>
+        <DataTable
+          rows={proformas}
+          rowKey={(q) => q.id}
+          emptyTitle="No proforma invoices yet"
+          columns={[
+            { header: 'Number', cell: (q) => q.proforma_no },
+            { header: 'To', cell: (q) => q.bill_to_text },
+            { header: 'Date', cell: (q) => (q.issued_on ? formatDate(q.issued_on) : '') },
+            { header: 'Total (UGX)', align: 'right', cell: (q) => formatNumber(q.total) },
+            {
+              header: 'Print',
+              cell: (q) => (
+                <Link to={`/print/proforma/${q.id}`} className="text-brand-green underline">
+                  Print
+                </Link>
+              ),
+            },
+          ]}
+        />
+      </section>
+      <section aria-labelledby="rc">
+        <h2 id="rc" className="mb-2 font-bold">
+          Receipts
+        </h2>
+        <DataTable
+          rows={receipts.data ?? []}
+          rowKey={(r) => r.id}
+          emptyTitle="No receipts yet"
+          emptyMessage="Issue a receipt when money is received."
+          columns={[
+            { header: 'Number', cell: (r) => r.receipt_no },
+            { header: 'Type', cell: (r) => (r.receipt_type === 'corporate' ? 'Corporate' : 'Cash / sales') },
+            { header: 'Received from', cell: (r) => r.received_from },
+            { header: 'Date', cell: (r) => formatDate(r.receipt_date) },
+            { header: 'Amount (UGX)', align: 'right', cell: (r) => formatNumber(r.amount) },
+            {
+              header: 'Print',
+              cell: (r) => (
+                <Link to={`/print/receipt/${r.id}`} className="text-brand-green underline">
+                  Print
+                </Link>
+              ),
+            },
+          ]}
+        />
+      </section>
     </div>
   );
 }

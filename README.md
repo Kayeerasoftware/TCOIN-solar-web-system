@@ -11,18 +11,32 @@ cp .env.example .env
 npm run dev        # http://localhost:5173
 ```
 
-Set `VITE_ENABLE_MOCKS=true` to run against Mock Service Worker handlers instead of the backend.
+### Run without a backend (demo mode)
+
+```bash
+npm run dev:mock
+```
+
+This runs the app against an in-memory mock of the API (`src/mocks`), so every built screen works before the backend exists. Data resets on reload.
+
+| Sign in as              | Credentials                                                                          | Notes                                          |
+| ----------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| Admin (all permissions) | `admin@tcoinug.com` / `Admin@123`                                                    | Kayeera Nathan; the name printed as signatory  |
+| Finance (limited)       | `mfa@tcoinug.com` / `Admin@123`, then code `123456`                                  | Shows two-step sign-in and permission blocking |
+| Customer                | `sarah@example.com` / `Customer@123`, or phone `+256 700 111 222` with code `123456` | The portal screens are still stubs             |
+
+Try: calculator, then lead capture; sign in as admin, then Quotes, build a quote from the catalog, Issue Proforma Invoice (next number 0249), Documents, New receipt.
 
 ## Scripts
 
-| Command | What it does |
-|---|---|
-| `npm run dev` | Start the dev server |
-| `npm run build` | Typecheck and build to `dist/` |
-| `npm run lint` / `npm run typecheck` | ESLint and TypeScript |
-| `npm test` | Unit and component tests (Vitest) |
-| `npm run test:e2e` | End-to-end tests (Playwright) |
-| `npm run generate:api` | Regenerate API types from `openapi/openapi.yaml` |
+| Command                              | What it does                                     |
+| ------------------------------------ | ------------------------------------------------ |
+| `npm run dev`                        | Start the dev server                             |
+| `npm run build`                      | Typecheck and build to `dist/`                   |
+| `npm run lint` / `npm run typecheck` | ESLint and TypeScript                            |
+| `npm test`                           | Unit and component tests (Vitest)                |
+| `npm run test:e2e`                   | End-to-end tests (Playwright)                    |
+| `npm run generate:api`               | Regenerate API types from `openapi/openapi.yaml` |
 
 ## Where things are
 
@@ -40,4 +54,6 @@ Green #1D6434, indigo #3B3A93, red #ED1C24, brown #5A3114, accent #F5A623 (see `
 
 ## Status
 
-Scaffold: configuration, shared code with tests, every route, layouts, offline engine, and a stub for each page. Build screens page by page using `docs/screen-map.md`.
+Built and tested: sign-in (password, phone code, two-step), route guards, public home, service pages, solar calculator with lead capture, contact, about, FAQ, dashboard, leads board, quote list, quote builder with editable eight-column table, Proforma Invoice (screen and print), corporate and cash / sales receipts (screen and print), documents centre. See the Status column in `docs/screen-map.md`; everything marked Stub is still a placeholder.
+
+The mock API in `src/mocks` follows `openapi/openapi.yaml`, with these extensions the backend must add: proforma fields on quotes (`document_title`, `bill_to_text`, `validity_days`, `signatory_name`, `amount_in_words`, lines on create), `spec_text` on products, `GET /reports/summary`, and `lines` on receipts.

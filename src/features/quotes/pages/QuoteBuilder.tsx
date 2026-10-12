@@ -1,102 +1,249 @@
-import { useParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/api/client';
-import { qk } from '@/api/queryKeys';
-import { LoadingState } from '@/components/feedback/LoadingState';
-import { LineItemTable } from '@/components/line-items/LineItemTable';
-import { Button } from '@/components/ui/Button';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { listCatalogItems } from '@/api/endpoints/catalog';
+import { listCustomers } from '@/api/endpoints/crm';
+import { createQuote, getQuote, issueProforma, saveQuoteVersion } from '@/api/endpoints/quotes';
+import { qk } from '@/api/queryKeys';
+import { ApiError } from '@/api/errors';
+import { ErrorState } from '@/components/feedback/ErrorState';
+import { LoadingState } from '@/components/feedback/LoadingState';
+import { FormField } from '@/components/forms/FormField';
+import { Select, TextInput } from '@/components/forms/controls';
+import { LineItemEditor } from '@/components/line-items/LineItemEditor';
+import { blankLine, newLineKey, type EditorLine } from '@/components/line-items/lineHelpers';
+import { Button } from '@/components/ui/Button';
+import { ButtonLink } from '@/components/ui/ButtonLink';
+import { Card } from '@/components/ui/Card';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { formatNumber } from '@/lib/money';
+import { computeTotals } from '@/lib/quoteMath';
+import type { Customer, CatalogItem, Quote, QuoteInput } from '@/types/api';
 
-export default function QuoteBuilder() {
-  const { id } = useParams<{ id: string }>();
+function Builder({
+  quote,
+  customers,
+  catalog,
+}: {
+  quote?: Quote;
+  customers: Customer[];
+  catalog: CatalogItem[];
+}) {
+  const navigate = useNavigate();
   const qc = useQueryClient();
-  const [sending, setSending] = useState(false);
+  const locked = !!quote?.proforma_no;
+  const [customerId, setCustomerId] = useState(quote?.customer_id ?? '');
+  const [title, setTitle] = useState(quote?.document_title ?? 'Quotation');
+  const [billTo, setBillTo] = useState(quote?.bill_to_text ?? '');
+  const [validity, setValidity] = useState(quote?.validity_days ?? 30);
+  const [discount, setDiscount] = useState(quote?.discount_pct ?? 0);
+  const [lines, setLines] = useState<EditorLine[]>(
+    quote
+      ? quote.lines.map((l) => ({
+          key: newLineKey(),
+          variant_id: l.variant_id,
+          particulars: l.particulars,
+          specification: l.specification ?? '',
+          unit: l.unit,
+          quantity: l.quantity,
+          rate: l.rate,
+          image_url: l.image_url,
+        }))
+      : [blankLine()],
+  );
+  const [problem, setProblem] = useState('');
 
-  const { data: quote, isLoading } = useQuery({
-    queryKey: qk.quote(id!),
-    queryFn: () => api.get(`/quotes/${id}`).then((r) => r.data),
-    enabled: !!id,
+  const usable = lines.filter((l) => l.particulars.trim() && l.quantity > 0);
+  const totals = computeTotals(usable, discount);
+
+  const pickCustomer = (id: string) => {
+    const prev = customers.find((c) => c.id === customerId)?.display_name;
+    setCustomerId(id);
+    if (!billTo || billTo === prev) setBillTo(customers.find((c) => c.id === id)?.display_name ?? '');
+  };
+
+  const validate = (): string => {
+    if (!customerId) return 'Choose a customer.';
+    if (!usable.length) return 'Add at least one line with particulars and a quantity.';
+    return '';
+  };
+  const toInput = (): QuoteInput => ({
+    customer_id: customerId,
+    currency: 'UGX',
+    document_title: title,
+    bill_to_text: billTo,
+    validity_days: validity,
+    discount_pct: discount,
+    lines: usable.map((l) => ({
+      variant_id: l.variant_id ?? null,
+      particulars: l.particulars,
+      specification: l.specification,
+      unit: l.unit,
+      quantity: l.quantity,
+      rate: l.rate,
+      image_url: l.image_url,
+    })),
   });
 
-  const send = useMutation({
-    mutationFn: () => api.post(`/quotes/${id}/send`, {}),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.quote(id!) });
-      setSending(false);
+  const save = useMutation({
+    mutationFn: async (): Promise<Quote> => {
+      const m = validate();
+      if (m) throw new Error(m);
+      return quote ? saveQuoteVersion(quote.id, toInput()) : createQuote(toInput());
     },
+    onSuccess: (q) => {
+      void qc.invalidateQueries({ queryKey: qk.quotes() });
+      setProblem('');
+      if (!quote) navigate(`/console/quotes/${q.id}`, { replace: true });
+    },
+    onError: (e: Error) => setProblem(e.message),
   });
-
-  const issueProforma = useMutation({
-    mutationFn: () => api.post(`/quotes/${id}/proforma`, { validity_days: 30 }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.quote(id!) }),
+  const issue = useMutation({
+    mutationFn: async () => {
+      const saved = await save.mutateAsync();
+      await issueProforma(saved.id);
+      return saved.id;
+    },
+    onSuccess: (id) => {
+      void qc.invalidateQueries({ queryKey: qk.quotes() });
+      navigate(`/print/proforma/${id}`);
+    },
+    onError: (e: Error) => setProblem(e instanceof ApiError ? e.message : e.message),
   });
-
-  if (isLoading) return <LoadingState />;
-  if (!quote) return <p className="p-8 text-ink-muted">Quote not found.</p>;
-
-  const v = quote.version;
-  const canSend = quote.status === 'draft';
+  const busy = save.isPending || issue.isPending;
 
   return (
-    <div className="max-w-5xl space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{quote.quote_no}</h1>
-          <p className="text-sm text-ink-muted capitalize">
-            Status: {quote.status} · Version {quote.current_version}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <a href={`/api/v1/quotes/${id}/pdf`} target="_blank" rel="noreferrer">
-            <Button variant="secondary">PDF</Button>
-          </a>
-          <Button variant="secondary" onClick={() => issueProforma.mutate()} busy={issueProforma.isPending}>
-            Issue proforma
-          </Button>
-          {canSend &&
-            (!sending ? (
-              <Button onClick={() => setSending(true)}>Send to customer</Button>
-            ) : (
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => setSending(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={() => send.mutate()} busy={send.isPending}>
-                  Confirm send
-                </Button>
-              </div>
-            ))}
-        </div>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold text-brand-green">
+          {quote
+            ? `${quote.proforma_no ? `Proforma Invoice ${quote.proforma_no}` : quote.quote_no}`
+            : 'New quote'}
+        </h1>
+        <Link to="/console/quotes" className="text-brand-green underline">
+          All quotes
+        </Link>
       </div>
-
-      {v && (
-        <>
-          <LineItemTable items={v.lines ?? []} currency={quote.currency} />
-          <div className="space-y-1 text-right text-sm">
-            <p>
-              Subtotal: {quote.currency} {Number(v.subtotal?.amount ?? 0).toLocaleString()}
-            </p>
-            {Number(v.discount_amount?.amount) > 0 && (
-              <p className="text-brand-red">
-                Discount: −{quote.currency} {Number(v.discount_amount.amount).toLocaleString()}
-              </p>
-            )}
-            <p>
-              Tax: {quote.currency} {Number(v.tax_amount?.amount ?? 0).toLocaleString()}
-            </p>
-            <p className="text-lg font-bold text-brand-green">
-              Total: {quote.currency} {Number(v.total?.amount ?? 0).toLocaleString()}
-            </p>
-            {v.margin_pct !== undefined && <p className="text-ink-muted">Margin: {v.margin_pct}%</p>}
-          </div>
-        </>
+      {locked && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-brand-green bg-green-50 p-3"
+        >
+          <span>
+            This quote was issued as Proforma Invoice {quote!.proforma_no} and can no longer be edited. Create
+            a new quote to change prices.
+          </span>
+          <ButtonLink to={`/print/proforma/${quote!.id}`}>Open print view</ButtonLink>
+        </div>
       )}
-
-      <div className="flex gap-3">
-        <a href={`/console/quotes/${id}/versions`} className="text-sm text-brand-green underline">
-          Version history
-        </a>
-      </div>
+      {problem && (
+        <p role="alert" className="rounded bg-red-50 p-3 text-brand-red">
+          {problem}
+        </p>
+      )}
+      <fieldset disabled={locked || busy} className="space-y-4">
+        <Card title="Customer and document">
+          <div className="grid gap-3 md:grid-cols-2">
+            <FormField label="Customer" htmlFor="customer">
+              <Select id="customer" value={customerId} onChange={(e) => pickCustomer(e.target.value)}>
+                <option value="">Choose a customer</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.display_name}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="To M/s (printed on the invoice)" htmlFor="billto">
+              <TextInput id="billto" value={billTo} onChange={(e) => setBillTo(e.target.value)} />
+            </FormField>
+            <FormField label="Document title" htmlFor="title">
+              <TextInput id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
+            </FormField>
+            <FormField label="Valid for (days)" htmlFor="validity">
+              <TextInput
+                id="validity"
+                type="number"
+                min={1}
+                value={validity}
+                onChange={(e) => setValidity(Number(e.target.value))}
+              />
+            </FormField>
+          </div>
+        </Card>
+        <Card title="Lines">
+          <LineItemEditor lines={lines} onChange={setLines} catalog={catalog} disabled={locked || busy} />
+        </Card>
+        <Card title="Totals">
+          <div className="grid gap-3 md:grid-cols-3">
+            <FormField label="Discount (%)" htmlFor="discount">
+              <TextInput
+                id="discount"
+                type="number"
+                min={0}
+                max={100}
+                step="any"
+                value={discount}
+                onChange={(e) => setDiscount(Number(e.target.value))}
+              />
+            </FormField>
+            <dl className="md:col-span-2">
+              <div className="flex justify-between border-b border-line py-1">
+                <dt>Subtotal</dt>
+                <dd>UGX {formatNumber(totals.subtotal)}</dd>
+              </div>
+              <div className="flex justify-between border-b border-line py-1">
+                <dt>Discount</dt>
+                <dd>- UGX {formatNumber(totals.discount_amount)}</dd>
+              </div>
+              <div className="flex justify-between py-1 text-lg font-bold">
+                <dt>Grand total</dt>
+                <dd>UGX {formatNumber(totals.total)}</dd>
+              </div>
+            </dl>
+          </div>
+          {totals.amount_in_words && <p className="mt-2 italic text-ink-muted">{totals.amount_in_words}</p>}
+        </Card>
+      </fieldset>
+      {!locked && (
+        <div className="flex flex-wrap gap-3">
+          <Button variant="secondary" busy={busy} onClick={() => save.mutate()}>
+            Save draft
+          </Button>
+          <Button busy={busy} onClick={() => issue.mutate()}>
+            Issue Proforma Invoice
+          </Button>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function QuoteBuilder() {
+  const { id = 'new' } = useParams();
+  const isNew = id === 'new';
+  useDocumentTitle(isNew ? 'New quote' : 'Quote');
+  const customers = useQuery({ queryKey: ['customers'], queryFn: listCustomers });
+  const catalog = useQuery({ queryKey: qk.products(), queryFn: listCatalogItems });
+  const quote = useQuery({ queryKey: qk.quote(id), queryFn: () => getQuote(id), enabled: !isNew });
+  if (customers.isLoading || catalog.isLoading || (!isNew && quote.isLoading)) return <LoadingState />;
+  if (customers.isError || catalog.isError || (!isNew && quote.isError))
+    return (
+      <ErrorState
+        message="Could not load this quote."
+        onRetry={() => {
+          void customers.refetch();
+          void catalog.refetch();
+          void quote.refetch();
+        }}
+      />
+    );
+  return (
+    <Builder
+      key={quote.data?.id ?? 'new'}
+      quote={isNew ? undefined : quote.data}
+      customers={customers.data ?? []}
+      catalog={catalog.data ?? []}
+    />
   );
 }

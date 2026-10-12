@@ -1,210 +1,172 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { FormField } from '@/components/forms/FormField';
+import { Select, TextInput } from '@/components/forms/controls';
 import { Button } from '@/components/ui/Button';
-import type { Appliance } from '@/sizing/types';
+import { Card } from '@/components/ui/Card';
+import { DISTRICTS } from '@/config/districts';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import type { Appliance, SystemType } from '@/sizing';
+import { PRESET_APPLIANCES } from '../estimate';
+import type { CalculatorInput } from '../types';
 
-type SystemType = 'off_grid' | 'hybrid' | 'on_grid';
-
-const PRESET_APPLIANCES: Appliance[] = [
-  { name: 'LED lights (×4)', watts: 40, quantity: 1, hoursPerDay: 6, runsAtNight: true },
-  { name: 'TV (32")', watts: 60, quantity: 1, hoursPerDay: 5 },
-  { name: 'Phone chargers (×4)', watts: 20, quantity: 1, hoursPerDay: 4 },
-  { name: 'Fan', watts: 60, quantity: 1, hoursPerDay: 8 },
-];
+const blank = (): Appliance => ({ name: '', watts: 0, quantity: 1, hoursPerDay: 1 });
 
 export default function CalculatorSteps() {
+  useDocumentTitle('Solar calculator');
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
+  const [params] = useSearchParams();
+  const [mode, setMode] = useState<'bill' | 'appliances'>('bill');
+  const [bill, setBill] = useState(params.get('bill') ?? '');
+  const [appliances, setAppliances] = useState<Appliance[]>([blank()]);
+  const [district, setDistrict] = useState('Kampala');
   const [systemType, setSystemType] = useState<SystemType>('hybrid');
-  const [location, setLocation] = useState('Kampala');
-  const [appliances, setAppliances] = useState<Appliance[]>(PRESET_APPLIANCES);
-  const [newApp, setNewApp] = useState({ name: '', watts: '', quantity: '1', hoursPerDay: '4' });
+  const [error, setError] = useState('');
 
-  function addAppliance() {
-    if (!newApp.name || !newApp.watts) return;
-    setAppliances((a) => [
-      ...a,
-      {
-        name: newApp.name,
-        watts: +newApp.watts,
-        quantity: +newApp.quantity,
-        hoursPerDay: +newApp.hoursPerDay,
-      },
-    ]);
-    setNewApp({ name: '', watts: '', quantity: '1', hoursPerDay: '4' });
-  }
+  const update = (i: number, patch: Partial<Appliance>) =>
+    setAppliances((rows) => rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
-  function removeAppliance(i: number) {
-    setAppliances((a) => a.filter((_, idx) => idx !== i));
-  }
-
-  function goToResults() {
-    navigate('/calculator/results', { state: { systemType, location, appliances } });
-  }
-
-  const totalWh = appliances.reduce((s, a) => s + a.watts * a.quantity * a.hoursPerDay, 0);
+  const submit = () => {
+    const valid = appliances.filter(
+      (a) => a.name.trim() && a.watts > 0 && a.quantity > 0 && a.hoursPerDay > 0,
+    );
+    if (mode === 'bill' && !(Number(bill) > 0)) return setError('Enter your monthly electricity bill.');
+    if (mode === 'appliances' && !valid.length)
+      return setError('Add at least one appliance with its watts and hours.');
+    setError('');
+    const input: CalculatorInput = {
+      mode,
+      monthlyBill: Number(bill) || undefined,
+      appliances: valid,
+      district,
+      systemType,
+    };
+    navigate('/calculator/results', { state: { input } });
+  };
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="text-2xl font-bold text-brand-green">Solar savings calculator</h1>
-      <div className="mt-4 flex gap-2">
-        {['System type', 'Appliances', 'Location'].map((s, i) => (
-          <div
-            key={s}
-            className={`flex-1 rounded py-1 text-center text-xs font-medium ${i === step ? 'bg-brand-green text-white' : 'bg-surface-alt text-ink-muted'}`}
-          >
-            {s}
-          </div>
-        ))}
-      </div>
-
-      {step === 0 && (
-        <div className="mt-8 space-y-4">
-          <h2 className="font-bold">What type of system do you want?</h2>
-          {(['off_grid', 'hybrid', 'on_grid'] as SystemType[]).map((t) => (
-            <label
-              key={t}
-              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 ${systemType === t ? 'border-brand-green bg-green-50' : 'border-line bg-white'}`}
-            >
-              <input
-                type="radio"
-                name="type"
-                value={t}
-                checked={systemType === t}
-                onChange={() => setSystemType(t)}
-                className="mt-1"
-              />
-              <div>
-                <div className="font-medium capitalize">{t.replace('_', '-')}</div>
-                <div className="text-sm text-ink-muted">
-                  {t === 'off_grid' && 'Fully independent from the grid. Requires battery storage.'}
-                  {t === 'hybrid' && 'Solar + battery + grid backup. Best of both worlds.'}
-                  {t === 'on_grid' && 'Grid-tied. No battery. Reduces your electricity bill.'}
-                </div>
+    <div className="mx-auto max-w-3xl space-y-4 p-4">
+      <h1 className="text-2xl font-bold text-brand-green">Solar calculator</h1>
+      <p className="text-ink-muted">
+        Answer two short steps to see an indicative system size and price range.
+      </p>
+      <Card title="Step 1 of 2: Your energy use">
+        <fieldset className="mb-3 flex gap-4">
+          <legend className="sr-only">How do you want to describe your use?</legend>
+          <label className="flex items-center gap-2">
+            <input type="radio" name="mode" checked={mode === 'bill'} onChange={() => setMode('bill')} />{' '}
+            Monthly bill
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="mode"
+              checked={mode === 'appliances'}
+              onChange={() => setMode('appliances')}
+            />{' '}
+            Appliance list
+          </label>
+        </fieldset>
+        {mode === 'bill' ? (
+          <FormField label="Monthly electricity bill (UGX)" htmlFor="bill">
+            <TextInput
+              id="bill"
+              inputMode="numeric"
+              value={bill}
+              onChange={(e) => setBill(e.target.value.replace(/[^\d]/g, ''))}
+            />
+          </FormField>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2" aria-label="Quick add">
+              {PRESET_APPLIANCES.map((p) => (
+                <Button
+                  key={p.name}
+                  variant="secondary"
+                  type="button"
+                  onClick={() =>
+                    setAppliances((rows) => [...rows.filter((r) => r.name || r.watts), { ...p }])
+                  }
+                >
+                  + {p.name}
+                </Button>
+              ))}
+            </div>
+            {appliances.map((a, i) => (
+              <div key={i} className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                <TextInput
+                  aria-label={`Appliance ${i + 1} name`}
+                  placeholder="Name"
+                  value={a.name}
+                  onChange={(e) => update(i, { name: e.target.value })}
+                  className="col-span-2"
+                />
+                <TextInput
+                  aria-label={`Appliance ${i + 1} watts`}
+                  type="number"
+                  min={0}
+                  placeholder="Watts"
+                  value={a.watts || ''}
+                  onChange={(e) => update(i, { watts: Number(e.target.value) })}
+                />
+                <TextInput
+                  aria-label={`Appliance ${i + 1} quantity`}
+                  type="number"
+                  min={1}
+                  placeholder="Qty"
+                  value={a.quantity}
+                  onChange={(e) => update(i, { quantity: Number(e.target.value) })}
+                />
+                <TextInput
+                  aria-label={`Appliance ${i + 1} hours per day`}
+                  type="number"
+                  min={0}
+                  max={24}
+                  step="0.5"
+                  placeholder="Hours/day"
+                  value={a.hoursPerDay}
+                  onChange={(e) => update(i, { hoursPerDay: Number(e.target.value) })}
+                />
               </div>
-            </label>
-          ))}
-          <Button className="w-full" onClick={() => setStep(1)}>
-            Next →
-          </Button>
+            ))}
+            <Button variant="secondary" type="button" onClick={() => setAppliances((r) => [...r, blank()])}>
+              Add appliance
+            </Button>
+          </div>
+        )}
+      </Card>
+      <Card title="Step 2 of 2: Location and system">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="District" htmlFor="district">
+            <Select id="district" value={district} onChange={(e) => setDistrict(e.target.value)}>
+              {DISTRICTS.map((d) => (
+                <option key={d.name}>{d.name}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField
+            label="System type"
+            htmlFor="systemType"
+            hint="Hybrid keeps working in outages and uses the grid when needed."
+          >
+            <Select
+              id="systemType"
+              value={systemType}
+              onChange={(e) => setSystemType(e.target.value as SystemType)}
+            >
+              <option value="hybrid">Hybrid (grid + battery)</option>
+              <option value="on_grid">On-grid (no battery)</option>
+              <option value="off_grid">Off-grid (battery only)</option>
+            </Select>
+          </FormField>
         </div>
+      </Card>
+      {error && (
+        <p role="alert" className="text-brand-red">
+          {error}
+        </p>
       )}
-
-      {step === 1 && (
-        <div className="mt-8 space-y-4">
-          <h2 className="font-bold">What appliances do you want to power?</h2>
-          <div className="rounded-lg border border-line bg-white">
-            <table className="w-full text-sm">
-              <thead className="border-b border-line bg-surface-alt text-xs text-ink-muted">
-                <tr>
-                  <th className="px-3 py-2 text-left">Appliance</th>
-                  <th className="px-3 py-2 text-right">W</th>
-                  <th className="px-3 py-2 text-right">Qty</th>
-                  <th className="px-3 py-2 text-right">Hrs/day</th>
-                  <th className="px-3 py-2 text-right">Wh/day</th>
-                  <th className="px-3 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {appliances.map((a, i) => (
-                  <tr key={i} className="border-b border-line last:border-0">
-                    <td className="px-3 py-2">{a.name}</td>
-                    <td className="px-3 py-2 text-right">{a.watts}</td>
-                    <td className="px-3 py-2 text-right">{a.quantity}</td>
-                    <td className="px-3 py-2 text-right">{a.hoursPerDay}</td>
-                    <td className="px-3 py-2 text-right font-medium">
-                      {(a.watts * a.quantity * a.hoursPerDay).toFixed(0)}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <button onClick={() => removeAppliance(i)} className="text-brand-red text-xs">
-                        ✕
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                <tr className="bg-surface-alt font-bold">
-                  <td className="px-3 py-2" colSpan={4}>
-                    Total
-                  </td>
-                  <td className="px-3 py-2 text-right text-brand-green">{totalWh.toFixed(0)} Wh/day</td>
-                  <td></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            <input
-              className="col-span-2 rounded border border-line px-2 py-1.5 text-sm"
-              placeholder="Appliance name"
-              value={newApp.name}
-              onChange={(e) => setNewApp((n) => ({ ...n, name: e.target.value }))}
-            />
-            <input
-              className="rounded border border-line px-2 py-1.5 text-sm"
-              placeholder="Watts"
-              type="number"
-              min="1"
-              value={newApp.watts}
-              onChange={(e) => setNewApp((n) => ({ ...n, watts: e.target.value }))}
-            />
-            <input
-              className="rounded border border-line px-2 py-1.5 text-sm"
-              placeholder="Qty"
-              type="number"
-              min="1"
-              value={newApp.quantity}
-              onChange={(e) => setNewApp((n) => ({ ...n, quantity: e.target.value }))}
-            />
-            <input
-              className="col-span-2 rounded border border-line px-2 py-1.5 text-sm"
-              placeholder="Hours/day"
-              type="number"
-              min="0"
-              max="24"
-              step="0.5"
-              value={newApp.hoursPerDay}
-              onChange={(e) => setNewApp((n) => ({ ...n, hoursPerDay: e.target.value }))}
-            />
-            <Button variant="secondary" className="col-span-2" onClick={addAppliance}>
-              + Add
-            </Button>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="secondary" onClick={() => setStep(0)}>
-              ← Back
-            </Button>
-            <Button className="flex-1" onClick={() => setStep(2)} disabled={appliances.length === 0}>
-              Next →
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="mt-8 space-y-4">
-          <h2 className="font-bold">Where is the site?</h2>
-          <div>
-            <label className="mb-1 block text-sm font-medium">District / location</label>
-            <input
-              className="w-full rounded border border-line px-3 py-2 text-sm"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. Kampala, Jinja, Gulu"
-            />
-          </div>
-          <p className="text-xs text-ink-muted">
-            We use your location to estimate peak sun hours (Uganda average: 5.5 h/day).
-          </p>
-          <div className="flex gap-3">
-            <Button variant="secondary" onClick={() => setStep(1)}>
-              ← Back
-            </Button>
-            <Button className="flex-1" onClick={goToResults} disabled={!location}>
-              See my estimate →
-            </Button>
-          </div>
-        </div>
-      )}
+      <Button onClick={submit}>See my estimate</Button>
     </div>
   );
 }

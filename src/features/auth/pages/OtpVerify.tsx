@@ -1,102 +1,77 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate } from 'react-router-dom';
 import { requestOtp, verifyOtp } from '@/api/endpoints/auth';
-import { me } from '@/api/endpoints/auth';
-import { useAuthStore } from '@/store/authStore';
+import { FormField } from '@/components/forms/FormField';
+import { TextInput } from '@/components/forms/controls';
 import { Button } from '@/components/ui/Button';
+import { completeLogin, homeFor } from '../session';
+import { codeSchema, phoneSchema } from '../schemas';
 
+/** Customers sign in with a one-time code sent to their phone. */
 export default function OtpVerify() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const setSession = useAuthStore((s) => s.setSession);
-  const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
-  const [step, setStep] = useState<'phone' | 'code'>('phone');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const from = (location.state as { from?: string })?.from ?? '/portal';
+  const [phone, setPhone] = useState<string | null>(null);
+  const phoneForm = useForm<{ phone: string }>({ resolver: zodResolver(phoneSchema) });
+  const codeForm = useForm<{ code: string }>({ resolver: zodResolver(codeSchema) });
 
-  async function sendOtp(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
-    try {
-      await requestOtp(phone);
-      setStep('code');
-    } catch {
-      setError('Could not send code. Check the number and try again.');
-    } finally {
-      setBusy(false);
-    }
-  }
+  const send = useMutation({ mutationFn: (p: string) => requestOtp(p), onSuccess: (_d, p) => setPhone(p) });
+  const verify = useMutation({
+    mutationFn: (code: string) => verifyOtp(phone!, code),
+    onSuccess: async (t) => navigate(homeFor(await completeLogin(t)), { replace: true }),
+    onError: (e: Error) => codeForm.setError('code', { message: e.message }),
+  });
 
-  async function verify(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
-    try {
-      const tokens = await verifyOtp(phone, code);
-      const user = await me();
-      setSession(user, tokens.access_token, tokens.refresh_token);
-      navigate(user.user_type === 'customer' ? '/portal' : from, { replace: true });
-    } catch {
-      setError('Invalid or expired code.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-bold text-brand-green">Sign in with OTP</h1>
-      {error && (
-        <p role="alert" className="rounded bg-red-50 p-2 text-sm text-brand-red">
-          {error}
+  if (!phone) {
+    return (
+      <form
+        onSubmit={phoneForm.handleSubmit((v) => send.mutate(v.phone))}
+        noValidate
+        aria-label="Request code"
+      >
+        <h1 className="mb-4 text-xl font-bold text-brand-green">Sign in with a phone code</h1>
+        <FormField
+          label="Phone number"
+          htmlFor="phone"
+          error={phoneForm.formState.errors.phone?.message}
+          hint="For example +256 700 111 222"
+        >
+          <TextInput
+            id="phone"
+            type="tel"
+            invalid={!!phoneForm.formState.errors.phone}
+            {...phoneForm.register('phone')}
+          />
+        </FormField>
+        <Button type="submit" busy={send.isPending} className="w-full">
+          Send code
+        </Button>
+        <p className="mt-4 text-center text-sm">
+          <Link to="/login" className="text-brand-green underline">
+            Use email and password
+          </Link>
         </p>
-      )}
-      {step === 'phone' ? (
-        <form onSubmit={sendOtp} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium">Phone number</label>
-            <input
-              className="w-full rounded border border-line px-3 py-2 text-sm"
-              type="tel"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </div>
-          <Button type="submit" busy={busy} className="w-full">
-            Send code
-          </Button>
-        </form>
-      ) : (
-        <form onSubmit={verify} className="space-y-4">
-          <p className="text-sm text-ink-muted">Code sent to {phone}.</p>
-          <div>
-            <label className="mb-1 block text-sm font-medium">One-time code</label>
-            <input
-              className="w-full rounded border border-line px-3 py-2 text-sm tracking-widest"
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              required
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-            />
-          </div>
-          <Button type="submit" busy={busy} className="w-full">
-            Verify
-          </Button>
-          <button
-            type="button"
-            className="text-sm text-brand-green underline"
-            onClick={() => setStep('phone')}
-          >
-            Change number
-          </button>
-        </form>
-      )}
-    </div>
+      </form>
+    );
+  }
+  return (
+    <form onSubmit={codeForm.handleSubmit((v) => verify.mutate(v.code))} noValidate aria-label="Verify code">
+      <h1 className="mb-1 text-xl font-bold text-brand-green">Enter your code</h1>
+      <p className="mb-4 text-sm text-ink-muted">We sent a code to {phone}.</p>
+      <FormField label="Code" htmlFor="code" error={codeForm.formState.errors.code?.message}>
+        <TextInput
+          id="code"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          invalid={!!codeForm.formState.errors.code}
+          {...codeForm.register('code')}
+        />
+      </FormField>
+      <Button type="submit" busy={verify.isPending} className="w-full">
+        Verify
+      </Button>
+    </form>
   );
 }

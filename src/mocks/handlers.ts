@@ -1,506 +1,333 @@
 import { http, HttpResponse } from 'msw';
-import { env } from '@/lib/env';
 import { FALLBACK_PROFILE } from '@/config/companyProfile';
-import {
-  MOCK_CREDENTIALS,
-  MOCK_TOKENS,
-  MOCK_MFA_TOKENS,
-  MOCK_STAFF_USER,
-  MFA_TRIGGER_PASSWORD,
-} from './fixtures/auth';
-import {
-  MOCK_QUOTES,
-  MOCK_PROJECTS,
-  MOCK_MILESTONES,
-  MOCK_ASSETS,
-  MOCK_WARRANTIES,
-  MOCK_INVOICES,
-  MOCK_ORDERS,
-  MOCK_TICKETS,
-} from './fixtures/portal';
-import { MOCK_PRODUCTS, MOCK_STORE_ORDERS } from './fixtures/store';
-import type { AuthUser } from '@/types/domain';
+import { env } from '@/lib/env';
+import { amountInWords } from '@/lib/amountInWords';
+import { computeTotals, withAmounts } from '@/lib/quoteMath';
+import { sumAmounts } from '@/lib/money';
+import type { Lead, Quote, QuoteInput, Receipt, ReceiptInput, ReportSummary } from '@/types/api';
+import { db, nextNumber, type MockUser } from './db';
 
 const base = env.VITE_API_URL;
+const problem = (
+  status: number,
+  code: string,
+  title: string,
+  errors?: { field: string; message: string }[],
+) =>
+  HttpResponse.json(
+    { type: 'about:blank', title, status, code, errors },
+    { status, headers: { 'Content-Type': 'application/problem+json' } },
+  );
+const publicUser = (u: MockUser) => ({
+  id: u.id,
+  full_name: u.full_name,
+  user_type: u.user_type,
+  customer_id: u.customer_id,
+  roles: u.roles,
+  permissions: u.permissions,
+});
+const tokensFor = (u: MockUser) => ({
+  access_token: `mock-access-${u.id}`,
+  refresh_token: `mock-refresh-${u.id}`,
+  expires_in: 900,
+});
+const userOf = (req: Request): MockUser | undefined => {
+  const m = /^Bearer mock-access-(.+)$/.exec(req.headers.get('authorization') ?? '');
+  return m ? db.users.find((u) => u.id === m[1]) : undefined;
+};
+const today = () => new Date().toISOString().slice(0, 10);
+const addDays = (iso: string, d: number) =>
+  new Date(new Date(iso).getTime() + d * 86400000).toISOString().slice(0, 10);
+const REORDER: Record<string, number> = {
+  'PV-550': 40,
+  'INV-8K': 3,
+  'BAT-5K': 6,
+  'CBL-6': 100,
+  'MNT-01': 15,
+  'MPPT-60': 5,
+};
 
-/** Tracks the logged-in user for /me during a mock session. */
-let currentUser: AuthUser = MOCK_STAFF_USER;
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ok = (data: any, status = 200) => HttpResponse.json(data, { status });
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const created = (data: any) => HttpResponse.json(data, { status: 201 });
-const notFound = () => HttpResponse.json({ title: 'Not found', status: 404 }, { status: 404 });
-const empty = (key = 'data') => HttpResponse.json({ [key]: [] });
+/** Tracks the logged-in user for /me during a mock session — resolved per-request via userOf(). */
 
 export const handlers = [
-  // ── Company & platform ──────────────────────────────────────────────────
-  http.get(`${base}/company-profile`, () => ok(FALLBACK_PROFILE)),
-  http.get(`${base}/amount-in-words`, () =>
-    ok({ words: 'Two million nine hundred thousand shillings only' }),
-  ),
-  http.get(`${base}/signatories`, () =>
-    ok({ data: [{ id: 'sig_1', display_name: 'John Doe', job_title: 'Director' }] }),
-  ),
-  http.get(`${base}/documents/templates`, () => ok({ data: [] })),
-  http.get(`${base}/documents/verify/:code`, ({ params }) =>
-    ok({
-      doc_type: 'receipt',
-      doc_no: `RCT-${params.code}`,
-      doc_date: '2025-01-01',
-      amount: '500000',
-      currency: 'UGX',
-      status: 'valid',
-    }),
-  ),
-  http.get(`${base}/documents`, () => empty()),
-  http.get(`${base}/documents/:id/download`, () => ok({ url: '#' })),
-  http.get(`${base}/notifications`, () => empty()),
-  http.patch(`${base}/notifications/:id`, () => ok({ id: 'n1' })),
-  http.get(`${base}/settings/:key`, ({ params }) => ok({ key: params.key, value: '' })),
-  http.put(`${base}/settings/:key`, () => ok({ message: 'Saved' })),
-  http.get(`${base}/audit-log`, () => empty()),
-  http.get(`${base}/reports/:name`, () => ok({ rows: [] })),
-
-  // ── Auth ────────────────────────────────────────────────────────────────
+  // ---- auth
   http.post(`${base}/auth/login`, async ({ request }) => {
-    const body = (await request.json()) as { identifier: string; password: string };
-    const user = MOCK_CREDENTIALS[body.identifier];
-    if (!user) return HttpResponse.json({ message: 'Invalid credentials' }, { status: 401 });
-    if (body.password === MFA_TRIGGER_PASSWORD)
-      return HttpResponse.json({ mfa_required: true, mfa_token: 'mock-mfa-token', expires_in: 300 });
-    currentUser = user;
-    return HttpResponse.json(MOCK_TOKENS);
+    const { identifier, password } = (await request.json()) as { identifier: string; password: string };
+    const id = String(identifier ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s/g, '');
+    const u = db.users.find(
+      (x) => (x.email === id || x.phone.replace('+', '') === id.replace('+', '')) && x.password === password,
+    );
+    if (!u) return problem(401, 'unauthorized', 'Wrong email, phone, or password');
+    if (u.mfa) return HttpResponse.json({ mfa_required: true, mfa_token: `mfa-${u.id}` });
+    return HttpResponse.json(tokensFor(u));
   }),
   http.post(`${base}/auth/mfa/verify`, async ({ request }) => {
-    const body = (await request.json()) as { mfa_token: string; code: string };
-    if (body.mfa_token !== 'mock-mfa-token' || body.code !== '123456')
-      return HttpResponse.json({ message: 'Invalid code' }, { status: 422 });
-    return HttpResponse.json(MOCK_MFA_TOKENS);
+    const { mfa_token, code } = (await request.json()) as { mfa_token: string; code: string };
+    const u = db.users.find((x) => `mfa-${x.id}` === mfa_token);
+    return u && code === '123456'
+      ? HttpResponse.json(tokensFor(u))
+      : problem(401, 'unauthorized', 'That code is not correct');
   }),
-  http.post(`${base}/auth/otp/request`, () => ok({ message: 'OTP sent' })),
+  http.post(`${base}/auth/otp/request`, () => new HttpResponse(null, { status: 202 })),
   http.post(`${base}/auth/otp/verify`, async ({ request }) => {
-    const body = (await request.json()) as { phone: string; code: string };
-    if (body.code !== '123456') return HttpResponse.json({ message: 'Invalid code' }, { status: 422 });
-    currentUser = MOCK_CREDENTIALS[body.phone] ?? MOCK_STAFF_USER;
-    return ok(MOCK_TOKENS);
+    const { phone, code } = (await request.json()) as { phone: string; code: string };
+    const u = db.users.find(
+      (x) => x.user_type === 'customer' && x.phone.replace('+', '') === phone.replace(/[\s+]/g, ''),
+    );
+    return u && code === '123456'
+      ? HttpResponse.json(tokensFor(u))
+      : problem(401, 'unauthorized', 'That code is not correct');
   }),
-  http.get(`${base}/me`, () => ok(currentUser)),
-  http.post(`${base}/auth/logout`, () => {
-    currentUser = MOCK_STAFF_USER;
-    return ok({ message: 'Logged out' });
+  http.post(`${base}/auth/refresh`, async ({ request }) => {
+    const { refresh_token } = (await request.json()) as { refresh_token: string };
+    const u = db.users.find((x) => `mock-refresh-${x.id}` === refresh_token);
+    return u ? HttpResponse.json(tokensFor(u)) : problem(401, 'unauthorized', 'Session expired');
   }),
-  http.post(`${base}/auth/change-password`, () => ok({ message: 'Password updated' })),
-  http.post(`${base}/auth/refresh`, () => ok(MOCK_TOKENS)),
-
-  // ── Catalog ─────────────────────────────────────────────────────────────
-  http.get(`${base}/catalog/products`, ({ request }) => {
+  http.get(`${base}/me`, ({ request }) => {
+    const u = userOf(request);
+    return u ? HttpResponse.json(publicUser(u)) : problem(401, 'unauthorized', 'Sign in required');
+  }),
+  http.post(`${base}/auth/logout`, () => new HttpResponse(null, { status: 204 })),
+  // ---- public
+  http.get(`${base}/company-profile`, () => HttpResponse.json(FALLBACK_PROFILE)),
+  http.get(`${base}/amount-in-words`, ({ request }) => {
     const url = new URL(request.url);
-    const q = url.searchParams.get('q')?.toLowerCase() ?? '';
-    const category = url.searchParams.get('category') ?? '';
-    let results = MOCK_PRODUCTS;
-    if (q)
-      results = results.filter((p) => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q));
-    if (category) results = results.filter((p) => p.category === category);
-    return ok({ data: results, total: results.length });
-  }),
-  http.get(`${base}/catalog/products/:id`, ({ params }) => {
-    const p = MOCK_PRODUCTS.find((x) => x.slug === params.id || x.id === params.id);
-    return p ? ok(p) : notFound();
-  }),
-  http.post(`${base}/catalog/products`, async ({ request }) =>
-    created({ id: 'prod_new', ...((await request.json()) as object) }),
-  ),
-  http.patch(`${base}/catalog/products/:id`, async ({ request }) =>
-    ok({ id: 'prod_1', ...((await request.json()) as object) }),
-  ),
-  http.get(`${base}/catalog/categories`, () =>
-    ok({ data: [{ id: 'cat_1', slug: 'panels', name: 'Solar Panels', children: [] }] }),
-  ),
-  http.post(`${base}/catalog/imports`, () =>
-    HttpResponse.json({ message: 'Import queued' }, { status: 202 }),
-  ),
-  http.get(`${base}/price-lists`, () =>
-    ok({
-      data: [{ id: 'pl_1', code: 'RETAIL', name: 'Retail', currency: 'UGX', customer_type: 'individual' }],
-    }),
-  ),
-
-  // ── CRM ─────────────────────────────────────────────────────────────────
-  http.get(`${base}/customers`, () => ok({ data: [] })),
-  http.post(`${base}/customers`, async ({ request }) =>
-    created({ id: 'cust_new', customer_no: 'CUST-001', ...((await request.json()) as object) }),
-  ),
-  http.get(`${base}/customers/:id`, ({ params }) =>
-    ok({
-      id: params.id,
-      customer_no: 'CUST-001',
-      display_name: 'Demo Customer',
-      customer_type: 'individual',
-    }),
-  ),
-  http.patch(`${base}/customers/:id`, async ({ request }) =>
-    ok({ id: 'cust_1', ...((await request.json()) as object) }),
-  ),
-  http.get(`${base}/leads`, () => ok({ data: [] })),
-  http.post(`${base}/leads`, async ({ request }) =>
-    created({ id: 'lead_new', lead_no: 'LEAD-001', status: 'new', ...((await request.json()) as object) }),
-  ),
-  http.get(`${base}/leads/:id`, ({ params }) =>
-    ok({ id: params.id, lead_no: 'LEAD-001', full_name: 'Demo Lead', status: 'new' }),
-  ),
-  http.patch(`${base}/leads/:id`, async ({ request }) =>
-    ok({ id: 'lead_1', ...((await request.json()) as object) }),
-  ),
-  http.post(`${base}/leads/:id/convert`, () =>
-    created({ customer_id: 'cust_new', opportunity_id: 'opp_new' }),
-  ),
-  http.get(`${base}/opportunities`, () => ok({ data: [] })),
-  http.post(`${base}/activities`, async ({ request }) =>
-    created({ id: 'act_new', ...((await request.json()) as object) }),
-  ),
-  http.post(`${base}/public/leads`, () => created({ id: 'lead_pub', lead_no: 'LEAD-PUB-001' })),
-  http.post(`${base}/public/sizing/estimate`, async ({ request }) => {
-    const body = (await request.json()) as { monthly_kwh?: number };
-    return ok({
-      dailyWh: ((body.monthly_kwh ?? 10) * 1000) / 30,
-      arrayKwp: 2,
-      panels: 4,
-      batteryKwh: 5,
-      inverterKw: 3,
-      priceLow: 8000000,
-      priceHigh: 12000000,
-      annualSavings: 2400000,
-      paybackYearsLow: 3,
-      paybackYearsHigh: 5,
-      disclaimer: 'Indicative estimate only.',
+    return HttpResponse.json({
+      words: amountInWords(
+        Number(url.searchParams.get('amount')),
+        (url.searchParams.get('currency') ?? 'UGX') as 'UGX',
+      ),
     });
   }),
-  http.get(`${base}/public/services`, () => ok({ data: [] })),
-
-  // ── Site surveys & designs ───────────────────────────────────────────────
-  http.get(`${base}/site-surveys`, () => ok({ data: [] })),
-  http.post(`${base}/site-surveys`, async ({ request }) =>
-    created({ id: 'surv_new', survey_no: 'SRV-001', ...((await request.json()) as object) }),
-  ),
-  http.get(`${base}/designs`, () => ok({ data: [] })),
-  http.post(`${base}/designs`, async ({ request }) =>
-    created({ id: 'des_new', design_no: 'DES-001', status: 'draft', ...((await request.json()) as object) }),
-  ),
-  http.get(`${base}/designs/:id`, ({ params }) =>
-    ok({
-      id: params.id,
-      design_no: 'DES-001',
-      status: 'draft',
-      system_type: 'hybrid',
-      results: { energy: { dailyWh: 5000 }, array: { kwp: 3 }, battery: { kwh: 10 }, inverter: { kw: 5 } },
-      warnings: [],
-      overrides: {},
-    }),
-  ),
-  http.patch(`${base}/designs/:id`, async ({ request }) =>
-    ok({ id: 'des_1', ...((await request.json()) as object) }),
-  ),
-  http.get(`${base}/designs/:id/bom`, () => ok({ data: [] })),
-  http.post(`${base}/sizing/calculate`, async () =>
-    ok({ dailyWh: 5000, arrayKwp: 3, panels: 6, batteryKwh: 10, inverterKw: 5, bom: [], warnings: [] }),
-  ),
-
-  // ── Quotes ───────────────────────────────────────────────────────────────
-  http.get(`${base}/quotes`, () => ok({ data: MOCK_QUOTES })),
-  http.post(`${base}/quotes`, async ({ request }) =>
-    created({
-      id: 'q_new',
-      quote_no: 'QT-2025-001',
-      status: 'draft',
-      current_version: 1,
-      currency: 'UGX',
-      ...((await request.json()) as object),
-    }),
-  ),
-  http.get(`${base}/quotes/:id`, ({ params }) => {
-    const q = MOCK_QUOTES.find((x) => x.id === params.id);
-    return q ? ok(q) : notFound();
-  }),
-  http.get(`${base}/quotes/:id/versions`, () => ok({ data: [] })),
-  http.post(`${base}/quotes/:id/versions`, async ({ request }) =>
-    created({ id: 'qv_new', version_no: 2, ...((await request.json()) as object) }),
-  ),
-  http.post(`${base}/quotes/:id/submit-approval`, () => ok({ message: 'Submitted' }, 202)),
-  http.post(`${base}/quotes/:id/send`, () => ok({ message: 'Sent' })),
-  http.post(`${base}/quotes/:id/accept`, ({ params }) => {
-    const q = MOCK_QUOTES.find((x) => x.id === params.id);
-    if (q) (q as { status: string }).status = 'accepted';
-    return ok({ message: 'Accepted' });
-  }),
-  http.get(`${base}/quotes/:id/pdf`, () => ok({ url: '#' })),
-  http.post(`${base}/quotes/:id/proforma`, async () =>
-    created({
-      proforma_no: 'PI-2025-001',
-      issued_on: new Date().toISOString().slice(0, 10),
-      valid_until: '',
-      document_id: 'doc_1',
-      total: { amount: '2900000', currency: 'UGX' },
-      amount_in_words: 'Two million nine hundred thousand shillings only',
-    }),
-  ),
-  http.get(`${base}/quotes/:id/proforma/pdf`, () => ok({ url: '#' })),
-
-  // ── Orders / store ───────────────────────────────────────────────────────
-  http.get(`${base}/cart`, () =>
-    ok({ id: 'cart_1', currency: 'UGX', items: [], subtotal: { amount: '0', currency: 'UGX' } }),
-  ),
-  http.put(`${base}/cart`, async ({ request }) =>
-    ok({ id: 'cart_1', ...((await request.json()) as object) }),
-  ),
-  http.get(`${base}/orders`, () => ok({ data: MOCK_ORDERS })),
-  http.post(`${base}/orders`, async ({ request }) => {
-    const body = (await request.json()) as Record<string, unknown>;
-    const id = `ord_${Date.now()}`;
-    const order = {
-      id,
-      order_no: `ORD-2025-${String(Object.keys(MOCK_STORE_ORDERS).length + 100).padStart(4, '0')}`,
-      status: 'confirmed',
-      placed_at: new Date().toISOString(),
-      total: { amount: '0', currency: 'UGX' },
-      ...body,
+  http.post(`${base}/public/leads`, async ({ request }) => {
+    const b = (await request.json()) as Partial<Lead> & Record<string, unknown>;
+    const errors: { field: string; message: string }[] = [];
+    if (!b.full_name) errors.push({ field: 'full_name', message: 'Name is required' });
+    if (!b.phone && !b.email)
+      errors.push({ field: 'phone', message: 'Give a phone number or an email address' });
+    if (errors.length) return problem(422, 'validation_failed', 'Validation failed', errors);
+    const lead: Lead = {
+      id: `l-${Date.now()}`,
+      lead_no: `LD-2026-${nextNumber('lead', 6)}`,
+      full_name: b.full_name!,
+      phone: b.phone,
+      email: b.email,
+      location: b.location,
+      service_interest: b.service_interest,
+      message: b.message,
+      status: 'new',
+      created_at: new Date().toISOString(),
     };
-    MOCK_STORE_ORDERS[id] = order;
-    return created(order);
+    db.leads.unshift(lead);
+    return HttpResponse.json({ lead_no: lead.lead_no }, { status: 201 });
   }),
-  http.get(`${base}/orders/:id`, ({ params }) => {
-    const id = params.id as string;
-    const fromPortal = MOCK_ORDERS.find((o) => o.id === id);
-    if (fromPortal) return ok(fromPortal);
-    const fromStore = MOCK_STORE_ORDERS[id];
-    return fromStore ? ok(fromStore) : notFound();
+  // ---- staff
+  http.get(`${base}/leads`, ({ request }) => {
+    if (!userOf(request)) return problem(401, 'unauthorized', 'Sign in required');
+    const status = new URL(request.url).searchParams.get('status');
+    return HttpResponse.json({
+      data: db.leads.filter((l) => !status || l.status === status),
+      next_cursor: null,
+    });
   }),
-  http.post(`${base}/orders/:id/cancel`, () => ok({ message: 'Cancelled' })),
-  http.post(`${base}/orders/:id/shipments`, async ({ request }) =>
-    created({ id: 'ship_1', ...((await request.json()) as object) }),
-  ),
-  http.post(`${base}/returns`, async ({ request }) =>
-    created({ id: 'ret_1', ...((await request.json()) as object) }),
-  ),
-
-  // ── Inventory ────────────────────────────────────────────────────────────
-  http.get(`${base}/warehouses`, () =>
-    ok({ data: [{ id: 'wh_1', code: 'KLA', name: 'Kampala Main', kind: 'warehouse' }] }),
-  ),
-  http.get(`${base}/stock`, () => ok({ data: [] })),
-  http.get(`${base}/stock/movements`, () => ok({ data: [] })),
-  http.post(`${base}/stock/movements`, async ({ request }) =>
-    created({ id: 'mv_new', ...((await request.json()) as object) }),
-  ),
-  http.post(`${base}/stock/transfers`, async ({ request }) =>
-    created({ id: 'tr_new', ...((await request.json()) as object) }),
-  ),
-  http.get(`${base}/serial-units/:serial`, ({ params }) =>
-    ok({ serial_no: params.serial, status: 'in_stock', variant_id: 'var_1', warehouse_id: 'wh_1' }),
-  ),
-  http.get(`${base}/suppliers`, () =>
-    ok({
-      data: [
-        {
-          id: 'sup_1',
-          code: 'SUP001',
-          name: 'Solar Supplies Ltd',
-          currency: 'UGX',
-          contact: { email: 'info@supplier.ug' },
-        },
-      ],
-    }),
-  ),
-  http.get(`${base}/purchase-orders`, () => ok({ data: [] })),
-  http.post(`${base}/purchase-orders`, async ({ request }) =>
-    created({ id: 'po_new', po_no: 'PO-2025-001', status: 'draft', ...((await request.json()) as object) }),
-  ),
-  http.post(`${base}/purchase-orders/:id/approve`, () => ok({ message: 'Approved' })),
-  http.post(`${base}/purchase-orders/:id/receive`, async ({ request }) =>
-    created({ id: 'grn_new', grn_no: 'GRN-2025-001', ...((await request.json()) as object) }),
-  ),
-
-  // ── Projects ─────────────────────────────────────────────────────────────
-  http.get(`${base}/projects`, () => ok({ data: MOCK_PROJECTS })),
-  http.get(`${base}/projects/:id`, ({ params }) => {
-    const p = MOCK_PROJECTS.find((x) => x.id === params.id);
-    return p ? ok(p) : notFound();
+  http.patch(`${base}/leads/:id`, async ({ request, params }) => {
+    if (!userOf(request)) return problem(401, 'unauthorized', 'Sign in required');
+    const lead = db.leads.find((l) => l.id === params.id);
+    if (!lead) return problem(404, 'not_found', 'Lead not found');
+    Object.assign(lead, await request.json());
+    return HttpResponse.json(lead);
   }),
-  http.patch(`${base}/projects/:id`, async ({ request }) =>
-    ok({ id: 'proj_1', ...((await request.json()) as object) }),
+  http.get(`${base}/customers`, ({ request }) =>
+    userOf(request)
+      ? HttpResponse.json({ data: db.customers, next_cursor: null })
+      : problem(401, 'unauthorized', 'Sign in required'),
   ),
-  http.get(`${base}/projects/:id/milestones`, ({ params }) =>
-    ok({ data: MOCK_MILESTONES[params.id as string] ?? [] }),
-  ),
-  http.get(`${base}/projects/:id/tasks`, () => ok({ data: [] })),
-  http.post(`${base}/projects/:id/tasks`, async ({ request }) =>
-    created({ id: 'task_new', ...((await request.json()) as object) }),
-  ),
-  http.put(`${base}/projects/:id/commissioning`, async ({ request }) =>
-    ok({ id: 'comm_1', ...((await request.json()) as object) }),
-  ),
-  http.post(`${base}/projects/:id/handover`, () => created({ message: 'Handover complete' })),
-  http.get(`${base}/schedule`, () => ok({ data: [] })),
-  http.post(`${base}/schedule`, async ({ request }) =>
-    created({ id: 'sched_new', ...((await request.json()) as object) }),
-  ),
-
-  // ── Field sync ───────────────────────────────────────────────────────────
-  http.get(`${base}/sync/pull`, () => ok({ cursor: Date.now(), has_more: false, changes: {}, deleted: [] })),
-  http.post(`${base}/sync/push`, () => ok({ results: [] })),
-  http.post(`${base}/uploads/sign`, () => ok({ upload_url: '#', download_url: '#' })),
-
-  // ── Maintenance ──────────────────────────────────────────────────────────
-  http.get(`${base}/assets`, () => ok({ data: MOCK_ASSETS })),
-  http.get(`${base}/assets/:id/warranties`, ({ params }) =>
-    ok({ data: MOCK_WARRANTIES[params.id as string] ?? [] }),
-  ),
-  http.get(`${base}/service-contracts`, () => ok({ data: [] })),
-  http.post(`${base}/service-contracts`, async ({ request }) =>
-    created({ id: 'sc_new', contract_no: 'SC-001', ...((await request.json()) as object) }),
-  ),
-  http.get(`${base}/tickets`, () => ok({ data: MOCK_TICKETS })),
-  http.post(`${base}/tickets`, async ({ request }) => {
-    const body = (await request.json()) as Record<string, string>;
-    const ticket = {
-      id: 'tkt_new',
-      ticket_no: 'TKT-2025-0019',
-      status: 'open',
-      ...body,
-      sla_response_due: new Date(Date.now() + 86400000).toISOString(),
-      sla_resolution_due: new Date(Date.now() + 259200000).toISOString(),
-    };
-    MOCK_TICKETS.push(ticket as never);
-    return created(ticket);
+  http.get(`${base}/catalog/products`, () => HttpResponse.json({ data: db.products, next_cursor: null })),
+  http.get(`${base}/catalog/products/:slug`, ({ params }) => {
+    const p = db.products.find((x) => x.id === params.slug || x.variants.some((v) => v.sku === params.slug));
+    return p ? HttpResponse.json(p) : HttpResponse.json({ title: 'Not found', status: 404 }, { status: 404 });
   }),
-  http.get(`${base}/tickets/:id`, ({ params }) => {
-    const t = MOCK_TICKETS.find((x) => x.id === params.id);
-    return t ? ok(t) : notFound();
+  http.get(`${base}/quotes`, ({ request }) => {
+    if (!userOf(request)) return problem(401, 'unauthorized', 'Sign in required');
+    const status = new URL(request.url).searchParams.get('status');
+    return HttpResponse.json({
+      data: db.quotes.filter((q) => !status || q.status === status),
+      next_cursor: null,
+    });
   }),
-  http.patch(`${base}/tickets/:id`, async ({ request }) =>
-    ok({ id: 'tkt_1', ...((await request.json()) as object) }),
-  ),
-  http.post(`${base}/tickets/:id/replies`, () => created({ id: 'reply_1', message: 'Reply received' })),
-  http.get(`${base}/work-orders`, () => ok({ data: [] })),
-  http.post(`${base}/work-orders`, async ({ request }) =>
-    created({ id: 'wo_new', wo_no: 'WO-001', status: 'open', ...((await request.json()) as object) }),
-  ),
-  http.post(`${base}/work-orders/:id/complete`, async ({ request }) =>
-    ok({ id: 'wo_1', status: 'completed', ...((await request.json()) as object) }),
-  ),
-
-  // ── Consultancy ──────────────────────────────────────────────────────────
-  http.get(`${base}/consultation-services`, () =>
-    ok({
-      data: [
-        {
-          id: 'cs_1',
-          code: 'CONSULT_1H',
-          name: '1-Hour Solar Consultation',
-          description: 'One-on-one session with a solar engineer.',
-          duration_min: 60,
-          price: { amount: '150000', currency: 'UGX' },
-        },
-      ],
-    }),
-  ),
-  http.get(`${base}/availability`, () => ok({ slots: [] })),
-  http.post(`${base}/bookings`, async ({ request }) =>
-    created({
-      id: 'bk_new',
-      booking_no: 'BK-001',
-      status: 'confirmed',
-      ...((await request.json()) as object),
-    }),
-  ),
-  http.get(`${base}/bookings`, () => ok({ data: [] })),
-  http.get(`${base}/engagements`, () => ok({ data: [] })),
-  http.post(`${base}/engagements/:id/deliverables`, async ({ request }) =>
-    created({ id: 'del_new', ...((await request.json()) as object) }),
-  ),
-
-  // ── Billing ──────────────────────────────────────────────────────────────
-  http.get(`${base}/invoices`, () => ok({ data: MOCK_INVOICES })),
-  http.post(`${base}/invoices`, async ({ request }) =>
-    created({
-      id: 'inv_new',
-      invoice_no: 'INV-2025-001',
+  http.get(`${base}/quotes/:id`, ({ request, params }) => {
+    if (!userOf(request)) return problem(401, 'unauthorized', 'Sign in required');
+    const q = db.quotes.find((x) => x.id === params.id);
+    return q ? HttpResponse.json(q) : problem(404, 'not_found', 'Quote not found');
+  }),
+  http.post(`${base}/quotes`, async ({ request }) => {
+    const u = userOf(request);
+    if (!u) return problem(401, 'unauthorized', 'Sign in required');
+    const b = (await request.json()) as QuoteInput;
+    if (!b.customer_id)
+      return problem(422, 'validation_failed', 'Validation failed', [
+        { field: 'customer_id', message: 'Choose a customer' },
+      ]);
+    if (!b.lines?.length)
+      return problem(422, 'validation_failed', 'Validation failed', [
+        { field: 'lines', message: 'Add at least one line' },
+      ]);
+    const lines = withAmounts(b.lines);
+    const t = computeTotals(lines, b.discount_pct, b.currency);
+    const q: Quote = {
+      id: `q-${Date.now()}`,
+      quote_no: `QT-2026-${nextNumber('quote', 6)}`,
+      proforma_no: null,
+      customer_id: b.customer_id,
       status: 'draft',
-      payment_state: 'unpaid',
-      ...((await request.json()) as object),
-    }),
-  ),
-  http.get(`${base}/invoices/:id`, ({ params }) => {
-    const inv = MOCK_INVOICES.find((x) => x.id === params.id);
-    return inv ? ok(inv) : notFound();
+      currency: b.currency,
+      document_title: b.document_title,
+      bill_to_text: b.bill_to_text,
+      issued_on: null,
+      validity_days: b.validity_days,
+      valid_until: null,
+      show_eoe: true,
+      show_images: true,
+      discount_pct: b.discount_pct,
+      ...t,
+      signatory_name: u.full_name.toUpperCase(),
+      lines,
+      created_at: new Date().toISOString(),
+    };
+    db.quotes.unshift(q);
+    return HttpResponse.json(q, { status: 201 });
   }),
-  http.post(`${base}/invoices/:id/issue`, () => ok({ message: 'Issued' })),
-  http.post(`${base}/invoices/:id/pay`, () =>
-    ok({ instructions: 'Dial *165# and follow prompts to complete payment.' }, 202),
+  http.post(`${base}/quotes/:id/versions`, async ({ request, params }) => {
+    if (!userOf(request)) return problem(401, 'unauthorized', 'Sign in required');
+    const q = db.quotes.find((x) => x.id === params.id);
+    if (!q) return problem(404, 'not_found', 'Quote not found');
+    if (q.proforma_no)
+      return problem(
+        409,
+        'invalid_transition',
+        'This quote was issued as a Proforma Invoice and can no longer be edited',
+      );
+    const b = (await request.json()) as QuoteInput;
+    const lines = withAmounts(b.lines);
+    Object.assign(q, {
+      document_title: b.document_title,
+      bill_to_text: b.bill_to_text,
+      validity_days: b.validity_days,
+      discount_pct: b.discount_pct,
+      customer_id: b.customer_id,
+      lines,
+      ...computeTotals(lines, b.discount_pct, q.currency),
+    });
+    return HttpResponse.json(q, { status: 201 });
+  }),
+  http.post(`${base}/quotes/:id/proforma`, ({ request, params }) => {
+    if (!userOf(request)) return problem(401, 'unauthorized', 'Sign in required');
+    const q = db.quotes.find((x) => x.id === params.id);
+    if (!q) return problem(404, 'not_found', 'Quote not found');
+    if (q.proforma_no)
+      return problem(409, 'already_processed', 'A Proforma Invoice was already issued for this quote');
+    if (!q.lines.length)
+      return problem(422, 'validation_failed', 'Validation failed', [
+        { field: 'lines', message: 'Add at least one line' },
+      ]);
+    q.proforma_no = nextNumber('proforma');
+    q.status = 'sent';
+    q.issued_on = today();
+    q.valid_until = addDays(q.issued_on, q.validity_days);
+    return HttpResponse.json(
+      {
+        proforma_no: q.proforma_no,
+        issued_on: q.issued_on,
+        valid_until: q.valid_until,
+        amount_in_words: q.amount_in_words,
+        total: { amount: q.total.toFixed(2), currency: q.currency },
+      },
+      { status: 201 },
+    );
+  }),
+  http.get(`${base}/receipts`, ({ request }) =>
+    userOf(request)
+      ? HttpResponse.json({ data: db.receipts, next_cursor: null })
+      : problem(401, 'unauthorized', 'Sign in required'),
   ),
-  http.get(`${base}/payments`, () => ok({ data: [] })),
-  http.post(`${base}/payments`, async ({ request }) =>
-    created({ id: 'pay_new', payment_no: 'PAY-001', ...((await request.json()) as object) }),
-  ),
-  http.get(`${base}/payments/reconciliation`, () =>
-    ok({ gateway_total: 0, recorded_total: 0, difference: 0 }),
-  ),
-  http.post(`${base}/payment-plans`, async ({ request }) =>
-    created({ id: 'pp_new', ...((await request.json()) as object) }),
-  ),
-  http.post(`${base}/credit-notes`, async ({ request }) =>
-    created({ id: 'cn_new', cn_no: 'CN-001', ...((await request.json()) as object) }),
-  ),
-
-  // ── TCOIN documents ──────────────────────────────────────────────────────
-  http.get(`${base}/receipts`, () => ok({ data: [] })),
-  http.post(`${base}/receipts`, async ({ request }) =>
-    created({
-      id: 'rct_new',
-      receipt_no: 'RCT-2025-001',
-      receipt_date: new Date().toISOString().slice(0, 10),
+  http.get(`${base}/receipts/:id`, ({ request, params }) => {
+    if (!userOf(request)) return problem(401, 'unauthorized', 'Sign in required');
+    const r = db.receipts.find((x) => x.id === params.id);
+    return r ? HttpResponse.json(r) : problem(404, 'not_found', 'Receipt not found');
+  }),
+  http.post(`${base}/receipts`, async ({ request }) => {
+    const u = userOf(request);
+    if (!u) return problem(401, 'unauthorized', 'Sign in required');
+    if (!u.permissions.includes('receipts.issue'))
+      return problem(403, 'forbidden', 'You cannot issue receipts');
+    const b = (await request.json()) as ReceiptInput;
+    const errors: { field: string; message: string }[] = [];
+    if (!b.received_from)
+      errors.push({ field: 'received_from', message: 'Enter who the money was received from' });
+    if (b.method === 'cheque' && !b.cheque_no)
+      errors.push({ field: 'cheque_no', message: 'Enter the cheque number' });
+    if (b.receipt_type === 'cash_sales' && !b.lines?.length)
+      errors.push({ field: 'lines', message: 'Add at least one item' });
+    const lines = withAmounts((b.lines ?? []).map((l) => ({ ...l, unit: 'pc' }))).map(
+      ({ line_no, quantity, particulars, rate, amount }) => ({
+        line_no,
+        quantity,
+        particulars,
+        rate,
+        amount,
+      }),
+    );
+    const amount =
+      b.receipt_type === 'cash_sales' ? sumAmounts(lines.map((l) => l.amount)) : Number(b.amount);
+    if (!(amount > 0)) errors.push({ field: 'amount', message: 'Enter an amount greater than zero' });
+    if (errors.length) return problem(422, 'validation_failed', 'Validation failed', errors);
+    const r: Receipt = {
+      id: `r-${Date.now()}`,
+      receipt_no: nextNumber(b.receipt_type),
+      receipt_type: b.receipt_type,
+      received_from: b.received_from,
+      received_from_address: b.received_from_address,
+      receipt_date: today(),
+      amount,
+      currency: b.currency,
+      amount_in_words: amountInWords(amount, b.currency),
+      payment_for: b.payment_for,
+      method: b.method,
+      cheque_no: b.cheque_no,
+      balance_after: null,
+      lines,
+      signatory_name: u.full_name.toUpperCase(),
+      disclaimer: b.receipt_type === 'cash_sales' ? 'Goods once sold are not returned' : undefined,
       status: 'issued',
-      verify_code: 'ABC123',
-      ...((await request.json()) as object),
-    }),
-  ),
-  http.get(`${base}/receipts/:id`, ({ params }) =>
-    ok({ id: params.id, receipt_no: 'RCT-001', receipt_date: '2025-01-01', status: 'issued' }),
-  ),
-  http.post(`${base}/receipts/:id/void`, () => ok({ message: 'Voided' })),
-  http.get(`${base}/receipts/:id/pdf`, () => ok({ url: '#' })),
-  http.get(`${base}/payment-vouchers`, () => ok({ data: [] })),
-  http.post(`${base}/payment-vouchers`, async ({ request }) =>
-    created({
-      id: 'pv_new',
-      voucher_no: 'PV-2025-001',
-      status: 'draft',
-      ...((await request.json()) as object),
-    }),
-  ),
-  http.get(`${base}/payment-vouchers/:id`, ({ params }) =>
-    ok({ id: params.id, voucher_no: 'PV-001', status: 'draft' }),
-  ),
-  http.post(`${base}/payment-vouchers/:id/submit`, () => ok({ message: 'Submitted' })),
-  http.post(`${base}/payment-vouchers/:id/approve`, () => ok({ message: 'Approved' })),
-  http.post(`${base}/payment-vouchers/:id/pay`, () => ok({ message: 'Paid' })),
-  http.post(`${base}/payment-vouchers/:id/receive`, () => ok({ message: 'Received' })),
-  http.get(`${base}/payment-vouchers/:id/pdf`, () => ok({ url: '#' })),
-  http.get(`${base}/delivery-notes`, () => ok({ data: [] })),
-  http.post(`${base}/delivery-notes`, async ({ request }) =>
-    created({ id: 'dn_new', dn_no: 'DN-2025-001', status: 'draft', ...((await request.json()) as object) }),
-  ),
-  http.post(`${base}/delivery-notes/:id/issue`, () => ok({ message: 'Issued' })),
-  http.post(`${base}/delivery-notes/:id/deliver`, () => ok({ message: 'Delivered' })),
-  http.get(`${base}/delivery-notes/:id/pdf`, () => ok({ url: '#' })),
-  http.get(`${base}/letters`, () => ok({ data: [] })),
-  http.post(`${base}/letters`, async ({ request }) =>
-    created({ id: 'ltr_new', status: 'draft', ...((await request.json()) as object) }),
-  ),
-  http.post(`${base}/letters/:id/issue`, () => ok({ message: 'Issued' })),
-  http.get(`${base}/letters/:id/pdf`, () => ok({ url: '#' })),
-
-  // ── Webhooks ─────────────────────────────────────────────────────────────
-  http.post(`${base}/webhooks/payments/:provider`, () => ok({ message: 'OK' })),
-  http.post(`${base}/webhooks/messaging/:provider`, () => ok({ message: 'OK' })),
+    };
+    db.receipts.unshift(r);
+    return HttpResponse.json(r, { status: 201 });
+  }),
+  http.get(`${base}/reports/summary`, ({ request }) => {
+    if (!userOf(request)) return problem(401, 'unauthorized', 'Sign in required');
+    const open = db.quotes.filter((q) => ['draft', 'sent', 'pending_approval'].includes(q.status));
+    const leads_by_status: Record<string, number> = {};
+    db.leads.forEach((l) => {
+      leads_by_status[l.status] = (leads_by_status[l.status] ?? 0) + 1;
+    });
+    const low_stock = db.products
+      .flatMap((p) => p.variants)
+      .filter((v) => v.available_qty <= (REORDER[v.sku] ?? 0))
+      .map((v) => ({ sku: v.sku, name: v.name, available: v.available_qty, reorder_level: REORDER[v.sku] }));
+    const summary: ReportSummary = {
+      pipeline_value: sumAmounts(open.map((q) => q.total)),
+      open_quotes: open.length,
+      receivables: Math.max(
+        0,
+        sumAmounts(db.quotes.filter((q) => q.status === 'accepted').map((q) => q.total)) -
+          sumAmounts(db.receipts.filter((r) => r.receipt_type === 'corporate').map((r) => r.amount)),
+      ),
+      low_stock,
+      leads_by_status,
+    };
+    return HttpResponse.json(summary);
+  }),
 ];

@@ -6,6 +6,7 @@ import { qk } from '@/api/queryKeys';
 import { useCartStore } from '@/store/cartStore';
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/feedback/LoadingState';
+import type { Product } from '@/types/api';
 
 const CATEGORY_ICON: Record<string, string> = {
   panels: '☀️',
@@ -16,26 +17,6 @@ const CATEGORY_ICON: Record<string, string> = {
   pumps: '💧',
   accessories: '🔌',
 };
-
-interface Variant {
-  id: string;
-  sku: string;
-  name: string;
-  unit: string;
-  price: { amount: string; currency: string };
-  available_qty: number;
-}
-interface Product {
-  id: string;
-  name: string;
-  brand: string;
-  model: string;
-  category: string;
-  description: string;
-  specs: Record<string, string>;
-  warranty_months: number;
-  variants: Variant[];
-}
 
 function fmt(n: string | number) {
   return Number(n).toLocaleString('en-UG');

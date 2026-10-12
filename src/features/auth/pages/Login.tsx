@@ -1,82 +1,72 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { login } from '@/api/endpoints/auth';
-import { me } from '@/api/endpoints/auth';
-import { useAuthStore } from '@/store/authStore';
+import { FormField } from '@/components/forms/FormField';
+import { TextInput } from '@/components/forms/controls';
 import { Button } from '@/components/ui/Button';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { completeLogin, homeFor } from '../session';
+import { loginSchema, type LoginForm } from '../schemas';
 
 export default function Login() {
+  useDocumentTitle('Sign in');
   const navigate = useNavigate();
-  const location = useLocation();
-  const setSession = useAuthStore((s) => s.setSession);
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const from = (useLocation().state as { from?: string } | null)?.from;
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors },
+  } = useForm<LoginForm>({ resolver: zodResolver(loginSchema) });
 
-  const from = (location.state as { from?: string })?.from ?? '/console';
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
-    try {
-      const tokens = await login(identifier, password);
-      if (tokens.mfa_required && tokens.mfa_token) {
-        navigate('/mfa', { state: { mfa_token: tokens.mfa_token, from } });
-        return;
-      }
-      const user = await me();
-      setSession(user, tokens.access_token, tokens.refresh_token);
-      navigate(user.user_type === 'customer' ? '/portal' : from, { replace: true });
-    } catch {
-      setError('Invalid email/phone or password.');
-    } finally {
-      setBusy(false);
-    }
-  }
+  const signIn = useMutation({
+    mutationFn: (v: LoginForm) => login(v.identifier, v.password, 'web'),
+    onSuccess: async (t) => {
+      if (t.mfa_required) return navigate('/mfa', { state: { mfa_token: t.mfa_token, from } });
+      navigate(homeFor(await completeLogin(t), from), { replace: true });
+    },
+    onError: (e: Error) => setError('root', { message: e.message }),
+  });
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h1 className="text-xl font-bold text-brand-green">Sign in</h1>
-      {error && (
-        <p role="alert" className="rounded bg-red-50 p-2 text-sm text-brand-red">
-          {error}
+    <form onSubmit={handleSubmit((v) => signIn.mutate(v))} noValidate aria-label="Sign in">
+      <h1 className="mb-4 text-xl font-bold text-brand-green">Sign in</h1>
+      {errors.root && (
+        <p role="alert" className="mb-3 rounded bg-red-50 p-2 text-sm text-brand-red">
+          {errors.root.message}
         </p>
       )}
-      <div>
-        <label className="mb-1 block text-sm font-medium">Email or phone</label>
-        <input
-          className="w-full rounded border border-line px-3 py-2 text-sm focus:outline-brand-indigo"
-          type="text"
+      <FormField label="Email or phone" htmlFor="identifier" error={errors.identifier?.message}>
+        <TextInput
+          id="identifier"
           autoComplete="username"
-          required
-          value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
+          invalid={!!errors.identifier}
+          {...register('identifier')}
         />
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium">Password</label>
-        <input
-          className="w-full rounded border border-line px-3 py-2 text-sm focus:outline-brand-indigo"
+      </FormField>
+      <FormField label="Password" htmlFor="password" error={errors.password?.message}>
+        <TextInput
+          id="password"
           type="password"
           autoComplete="current-password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          invalid={!!errors.password}
+          {...register('password')}
         />
-      </div>
-      <Button type="submit" busy={busy} className="w-full">
+      </FormField>
+      <Button type="submit" busy={signIn.isPending} className="w-full">
         Sign in
       </Button>
-      <div className="flex justify-between text-sm">
-        <a href="/otp" className="text-brand-green underline">
-          Sign in with OTP
-        </a>
-        <a href="/forgot-password" className="text-brand-green underline">
-          Forgot password?
-        </a>
-      </div>
+      <p className="mt-4 text-center text-sm">
+        <Link to="/otp" className="text-brand-green underline">
+          Sign in with a phone code
+        </Link>
+        {' | '}
+        <Link to="/forgot-password" className="text-brand-green underline">
+          Forgot password
+        </Link>
+      </p>
     </form>
   );
 }

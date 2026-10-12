@@ -1,144 +1,123 @@
-import { useState } from 'react';
-import { api } from '@/api/client';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { submitLead } from '@/api/endpoints/crm';
+import { SuccessBanner } from '@/components/feedback/SuccessBanner';
+import { FormField } from '@/components/forms/FormField';
+import { Select, TextInput, Textarea } from '@/components/forms/controls';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { useCompanyProfile } from '@/hooks/useCompanyProfile';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { applyServerErrors } from '@/lib/forms';
+import { requiredText } from '@/lib/validators';
+
+const schema = z
+  .object({
+    full_name: requiredText('Name'),
+    phone: z.string().trim().optional(),
+    email: z.string().trim().email('Enter a valid email address').or(z.literal('')).optional(),
+    location: z.string().trim().optional(),
+    service_interest: z.string().optional(),
+    message: z.string().trim().optional(),
+  })
+  .refine((v) => !!v.phone || !!v.email, {
+    path: ['phone'],
+    message: 'Give a phone number or an email address',
+  });
+type Form = z.infer<typeof schema>;
 
 export default function Contact() {
+  useDocumentTitle('Contact and quote request');
   const p = useCompanyProfile();
-  const [form, setForm] = useState({
-    full_name: '',
-    email: '',
-    phone: '',
-    message: '',
-    service_interest: '',
+  const {
+    register,
+    handleSubmit,
+    setError,
+    reset,
+    formState: { errors },
+  } = useForm<Form>({ resolver: zodResolver(schema), defaultValues: { service_interest: 'design' } });
+  const send = useMutation({
+    mutationFn: (v: Form) =>
+      submitLead({ ...v, phone: v.phone || undefined, email: v.email || undefined, source_code: 'web_form' }),
+    onSuccess: () => reset(),
+    onError: (e) => applyServerErrors(e, setError),
   });
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-
-  function set(k: keyof typeof form) {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-      setForm((f) => ({ ...f, [k]: e.target.value }));
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
-    try {
-      await api.post('/public/leads', { ...form, source_code: 'contact_form', captcha_token: 'bypass' });
-      setSent(true);
-    } catch {
-      setError('Could not send your message. Please try again or call us directly.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (sent)
-    return (
-      <div className="mx-auto max-w-xl px-4 py-16 text-center">
-        <div className="text-5xl">✅</div>
-        <h1 className="mt-4 text-2xl font-bold text-brand-green">Message received!</h1>
-        <p className="mt-2 text-ink-muted">We'll be in touch within one business day.</p>
-      </div>
-    );
-
   return (
-    <div className="mx-auto max-w-4xl px-4 py-12">
-      <h1 className="text-3xl font-bold text-brand-green">Contact us</h1>
-      <div className="mt-8 grid gap-10 sm:grid-cols-2">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <p role="alert" className="rounded bg-red-50 p-2 text-sm text-brand-red">
-              {error}
-            </p>
+    <div className="mx-auto grid max-w-5xl gap-4 p-4 md:grid-cols-3">
+      <div className="md:col-span-2">
+        <Card title="Request a quote">
+          {send.isSuccess && (
+            <div className="mb-3">
+              <SuccessBanner
+                title="Request received"
+                message={`Your reference is ${send.data.lead_no}. We will contact you soon.`}
+              />
+            </div>
           )}
-          <div>
-            <label className="mb-1 block text-sm font-medium">Full name *</label>
-            <input
-              className="w-full rounded border border-line px-3 py-2 text-sm"
-              required
-              value={form.full_name}
-              onChange={set('full_name')}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Email</label>
-            <input
-              className="w-full rounded border border-line px-3 py-2 text-sm"
-              type="email"
-              value={form.email}
-              onChange={set('email')}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Phone</label>
-            <input
-              className="w-full rounded border border-line px-3 py-2 text-sm"
-              type="tel"
-              value={form.phone}
-              onChange={set('phone')}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">I'm interested in</label>
-            <select
-              className="w-full rounded border border-line px-3 py-2 text-sm"
-              value={form.service_interest}
-              onChange={set('service_interest')}
-            >
-              <option value="">Select…</option>
-              <option>Solar design</option>
-              <option>Installation</option>
-              <option>Maintenance plan</option>
-              <option>Consultancy</option>
-              <option>Components / store</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Message *</label>
-            <textarea
-              className="w-full rounded border border-line px-3 py-2 text-sm"
-              rows={4}
-              required
-              value={form.message}
-              onChange={set('message')}
-            />
-          </div>
-          <Button type="submit" busy={busy} className="w-full">
-            Send message
-          </Button>
-        </form>
-        <div className="space-y-3 text-sm text-ink-muted">
-          <h2 className="text-base font-bold text-ink">Get in touch</h2>
-          <p>📍 {p.address}</p>
-          <p>📬 {p.po_box}</p>
-          <p>📞 {p.tel}</p>
-          <p>📱 {p.mobile}</p>
-          {p.hotlines.map((h) => (
-            <p key={h}>📞 {h}</p>
-          ))}
-          <p>
-            ✉️{' '}
-            <a href={`mailto:${p.email}`} className="text-brand-green underline">
-              {p.email}
-            </a>
-          </p>
-          <p>
-            🌐{' '}
-            <a
-              href={`https://${p.web}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-brand-green underline"
-            >
-              {p.web}
-            </a>
-          </p>
-        </div>
+          <form onSubmit={handleSubmit((v) => send.mutate(v))} noValidate aria-label="Request a quote">
+            {errors.root && (
+              <p role="alert" className="mb-2 text-brand-red">
+                {errors.root.message}
+              </p>
+            )}
+            <FormField label="Full name" htmlFor="full_name" error={errors.full_name?.message}>
+              <TextInput id="full_name" invalid={!!errors.full_name} {...register('full_name')} />
+            </FormField>
+            <FormField label="Phone" htmlFor="phone" error={errors.phone?.message}>
+              <TextInput id="phone" type="tel" invalid={!!errors.phone} {...register('phone')} />
+            </FormField>
+            <FormField label="Email" htmlFor="email" error={errors.email?.message}>
+              <TextInput id="email" type="email" invalid={!!errors.email} {...register('email')} />
+            </FormField>
+            <FormField label="Location" htmlFor="location">
+              <TextInput id="location" {...register('location')} />
+            </FormField>
+            <FormField label="Service" htmlFor="service_interest">
+              <Select id="service_interest" {...register('service_interest')}>
+                <option value="design">Design</option>
+                <option value="installation">Installation</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="consultancy">Consultancy</option>
+                <option value="components">Components</option>
+              </Select>
+            </FormField>
+            <FormField label="Message" htmlFor="message">
+              <Textarea id="message" {...register('message')} />
+            </FormField>
+            <Button type="submit" busy={send.isPending}>
+              Send request
+            </Button>
+          </form>
+        </Card>
       </div>
+      <Card title="Talk to us">
+        <dl className="space-y-2 text-sm">
+          <div>
+            <dt className="text-ink-muted">Phone</dt>
+            <dd>
+              {p.tel}
+              <br />
+              {p.mobile}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-ink-muted">Hotlines</dt>
+            <dd>{p.hotlines.join(', ')}</dd>
+          </div>
+          <div>
+            <dt className="text-ink-muted">Email</dt>
+            <dd>{p.email}</dd>
+          </div>
+          <div>
+            <dt className="text-ink-muted">Address</dt>
+            <dd>
+              {p.address}, {p.po_box}
+            </dd>
+          </div>
+        </dl>
+      </Card>
     </div>
   );
 }

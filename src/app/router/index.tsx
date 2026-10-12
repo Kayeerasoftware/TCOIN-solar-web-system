@@ -6,8 +6,16 @@ import { publicRoutes } from './routes.public';
 import { portalRoutes } from './routes.portal';
 import { consoleRoutes } from './routes.console';
 import { fieldRoutes } from './routes.field';
+import { printRoutes } from './routes.print';
 
-const router = createBrowserRouter([...publicRoutes, portalRoutes, consoleRoutes, fieldRoutes, { path: '*', element: <NotFound /> }]);
+const router = createBrowserRouter([
+  ...publicRoutes,
+  portalRoutes,
+  consoleRoutes,
+  fieldRoutes,
+  printRoutes,
+  { path: '*', element: <NotFound /> },
+]);
 
 export function AppRouter() {
   return (

@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "generate:api": "openapi-typescript openapi/openapi.yaml -o src/api/generated/schema.d.ts",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "dev:mock": "vite --mode mock"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

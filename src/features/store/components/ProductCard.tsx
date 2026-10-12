@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useCartStore } from '@/store/cartStore';
+import type { Product } from '@/types/api';
+
+export type { Product };
 
 const CATEGORY_ICON: Record<string, string> = {
   panels: '☀️',
@@ -10,25 +13,6 @@ const CATEGORY_ICON: Record<string, string> = {
   pumps: '💧',
   accessories: '🔌',
 };
-
-interface Variant {
-  id: string;
-  sku: string;
-  name: string;
-  unit: string;
-  price: { amount: string; currency: string };
-  available_qty: number;
-}
-export interface Product {
-  id: string;
-  name: string;
-  brand: string;
-  model: string;
-  slug: string;
-  category: string;
-  warranty_months: number;
-  variants: Variant[];
-}
 
 export function ProductCard({ product }: { product: Product }) {
   const add = useCartStore((s) => s.add);
