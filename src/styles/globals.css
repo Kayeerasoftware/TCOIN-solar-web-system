@@ -20,7 +20,7 @@
 @layer base {
   html {
     color: var(--ink);
-    background: var(--surface-alt);
+    background: #ffffff;
     -webkit-text-size-adjust: 100%;
   }
   body {
