@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { submitLead } from '@/api/endpoints/crm';
@@ -36,6 +36,17 @@ export default function CalculatorResults() {
 
   const [savePrompt, setSavePrompt] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const update = () => {
+      const vw = document.documentElement.clientWidth;
+      setScale(Math.min(1, vw / 794));
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   const {
     register,
@@ -145,7 +156,16 @@ export default function CalculatorResults() {
         </div>
       )}
 
-      <article className="qr-doc">
+      <article
+        className="qr-doc"
+        style={{
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+          marginLeft: scale < 1 ? `${(document.documentElement.clientWidth - 794 * scale) / 2}px` : 'auto',
+          marginRight: scale < 1 ? 0 : 'auto',
+          marginBottom: scale < 1 ? `calc((${scale} - 1) * 100%)` : undefined,
+        }}
+      >
         {/* ── Masthead ── */}
         <header className="qr-masthead">
           <div className="qr-logo-lockup">
