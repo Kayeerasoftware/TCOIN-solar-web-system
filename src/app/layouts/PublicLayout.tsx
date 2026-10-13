@@ -74,17 +74,9 @@ export function PublicLayout() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* ── ANNOUNCEMENT BAR ── */}
-      <div className="bg-[#1D6434] text-white text-center text-xs font-semibold py-2 px-4 tracking-wide z-50 relative">
-        ☀️ Free site survey for all new installations in Kampala &amp; Wakiso —&nbsp;
-        <Link to="/contact" className="underline underline-offset-2 hover:text-[#F5A623] transition-colors">
-          Book now →
-        </Link>
-      </div>
-
       {/* ── NAV ── */}
       <header
-        className="sticky top-0 z-40 transition-all duration-300"
+        className="sticky top-0 z-40 transition-all duration-300 print:hidden"
         style={{
           background: solid ? 'rgba(255,255,255,0.97)' : 'rgba(0,0,0,0.18)',
           backdropFilter: 'blur(16px)',
@@ -322,7 +314,7 @@ export function PublicLayout() {
         </div>
 
         {/* ── DOUBLE RULE ── */}
-        {solid && <DoubleRule />}
+        <DoubleRule />
 
         {/* ── MOBILE DRAWER ── */}
         {mobileOpen && (
@@ -427,7 +419,7 @@ export function PublicLayout() {
       </main>
 
       {/* ── FOOTER ── */}
-      <footer className="bg-[#0d1a10] text-white">
+      <footer className="bg-[#0d1a10] text-white print:hidden">
         <div className="mx-auto max-w-7xl px-6 py-16 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-1">
             <Logo className="brightness-0 invert opacity-90" />

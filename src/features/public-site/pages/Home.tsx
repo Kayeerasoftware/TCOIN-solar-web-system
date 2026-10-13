@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import type { CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCompanyProfile } from '@/hooks/useCompanyProfile';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -174,6 +173,271 @@ function Counter({ end, suffix }: { end: number; suffix: string }) {
   );
 }
 
+/* ───────────── HERO (front screen) ───────────── */
+
+/** Box 1 to 7: project photos that drift left. Seven distinct photos, shown twice for a seamless loop. */
+const PROJECT_TILES = [
+  { src: '/Field photos/panels.jpg', label: 'Rooftop array' },
+  { src: '/Field photos/team.jpg', label: 'Our team' },
+  { src: '/Field photos/system.jpg', label: 'Completed system' },
+  { src: '/Field photos/wiring.jpg', label: 'Wiring and protection' },
+  { src: '/Field photos/showin system side.jpg', label: 'System, side view' },
+  { src: '/Field photos/work progress.jpg', label: 'Work in progress' },
+  { src: '/Field photos/showin system stright.jpg', label: 'System, front view' },
+];
+
+/** Box 8: put your AI-generated image of a perfect completed system here (see the placeholder text on screen). */
+const AI_SYSTEM_IMAGE = '/brand/Hybrid Solar System Infographic.png';
+
+/** Box 9: bold words and descriptions that appear one after another in the same place. */
+const HERO_SLIDES: { words: string[]; accent: number[]; desc: string }[] = [
+  {
+    words: ['POWER', 'YOUR', 'FUTURE', 'WITH', 'SOLAR'],
+    accent: [2],
+    desc: 'Design, installation, maintenance and consultancy — all from one expert team in Kampala.',
+  },
+  ...SERVICES.map((s) => {
+    const words = s.title.toUpperCase().split(' ');
+    return { words, accent: [words.length - 1], desc: s.text };
+  }),
+  {
+    words: ['SOLAR', 'COMPONENTS'],
+    accent: [1],
+    desc: 'Panels, inverters, batteries and installation materials — supplied by TCOIN with warranty.',
+  },
+];
+const HERO_SLIDE_MS = 4200;
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+function HeroTicker() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    const t = setInterval(() => setI((n) => (n + 1) % HERO_SLIDES.length), HERO_SLIDE_MS);
+    return () => clearInterval(t);
+  }, []);
+  const s = HERO_SLIDES[i];
+  return (
+    <div
+      className="th-ticker"
+      role="group"
+      aria-roledescription="carousel"
+      aria-label="What TCOIN Solar offers"
+    >
+      {/* key remounts the block so the entrance animation replays for every slide */}
+      <div key={i} aria-live="off" aria-atomic="true">
+        <h2 className="th-words">
+          {s.words.map((w, k) => (
+            <span
+              key={k}
+              className="th-word"
+              style={{ animationDelay: `${k * 140}ms`, color: s.accent.includes(k) ? '#F5A623' : '#fff' }}
+            >
+              {w}
+            </span>
+          ))}
+        </h2>
+        <p className="th-desc" style={{ animationDelay: `${s.words.length * 140 + 120}ms` }}>
+          {s.desc}
+        </p>
+        <span className="th-progress" aria-hidden />
+      </div>
+      <div className="th-dots">
+        {HERO_SLIDES.map((_, k) => (
+          <button
+            key={k}
+            type="button"
+            className="th-dot"
+            aria-label={`Show message ${k + 1} of ${HERO_SLIDES.length}`}
+            aria-current={k === i}
+            onClick={() => setI(k)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AiSystemShowcase() {
+  const [missing, setMissing] = useState(false);
+  return (
+    <figure className="th-ai">
+      {!missing && (
+        <img
+          src={AI_SYSTEM_IMAGE}
+          alt="Completed TCOIN Solar system (AI-generated illustration)"
+          onError={() => setMissing(true)}
+        />
+      )}
+      {missing && (
+        <div
+          className="th-ai-ph"
+          role="img"
+          aria-label="Placeholder for an AI-generated image of a perfect completed solar system"
+        >
+          <svg viewBox="0 0 160 110" width="150" height="103" aria-hidden>
+            <circle cx="132" cy="22" r="13" fill="#F5A623" />
+            {[0, 1, 2].map((r) =>
+              [0, 1, 2, 3].map((c) => (
+                <polygon
+                  key={`${r}-${c}`}
+                  points={`${18 + c * 31 - r * 5},${48 + r * 17} ${46 + c * 31 - r * 5},${48 + r * 17} ${42 + c * 31 - r * 5},${62 + r * 17} ${14 + c * 31 - r * 5},${62 + r * 17}`}
+                  fill="rgba(74,222,128,.22)"
+                  stroke="#4ade80"
+                  strokeWidth="1.2"
+                />
+              )),
+            )}
+          </svg>
+          <strong>AI-generated completed solar system</strong>
+          <span>
+            Placeholder. Add your image as <code>public/hero/ai-solar-system.jpg</code>
+          </span>
+        </div>
+      )}
+    </figure>
+  );
+}
+
+function ProjectStrip() {
+  const loop = [...PROJECT_TILES, ...PROJECT_TILES];
+  return (
+    <div className="th-strip" aria-label="Recent TCOIN Solar projects">
+      <div className="th-viewport">
+        <div className="th-track">
+          {loop.map((t, k) => {
+            const clone = k >= PROJECT_TILES.length;
+            return (
+              <figure
+                key={k}
+                className="th-tile"
+                aria-hidden={clone || undefined}
+                data-testid={clone ? 'project-tile-clone' : 'project-tile'}
+              >
+                <img src={t.src} alt={clone ? '' : t.label} draggable={false} />
+                <figcaption>{t.label}</figcaption>
+              </figure>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const BRAND_TITLE = 'TCOIN Center of Innovations';
+
+const HERO_CSS = `
+  .th-hero { position: relative; height: 100vh; min-height: 700px; display: flex; flex-direction: column; margin-top: -32px; }
+  .th-grid { position: relative; z-index: 2; flex: 1; min-height: 0; display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.15fr) 272px; grid-template-rows: auto minmax(0, 1fr);
+    gap: 14px 2.2rem; padding: 104px 2.5rem 0; box-sizing: border-box; }
+  .th-title { grid-column: 1 / 3; grid-row: 1; align-self: end; display: flex; justify-content: center; }
+  .th-brand-title { display: flex; align-items: center; justify-content: center;
+    font-size: clamp(1rem, 2.2vw, 1.9rem); font-weight: 300; letter-spacing: 0.42em;
+    text-transform: uppercase; line-height: 1; white-space: nowrap;
+    position: relative; padding-bottom: 10px; }
+  .th-brand-title::after { content: ''; position: absolute; left: 0; bottom: 0;
+    height: 1px; width: 100%;
+    background: linear-gradient(90deg, transparent, rgba(245,166,35,.5), transparent);
+    opacity: 0.6; }
+  .th-brand-char { display: inline-block; color: rgba(255,255,255,0.72);
+    animation: th-flag 2.8s ease-in-out infinite; }
+  .th-brand-space { display: inline-block; width: .28em; }
+  @keyframes th-flag {
+    0%, 100% { transform: translateY(0);    color: rgba(255,255,255,0.55); }
+    50%       { transform: translateY(-6px); color: rgba(245,166,35,1); }
+  }
+  .th-ai { grid-column: 1; grid-row: 2; }
+  .th-center { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  .th-calc { grid-column: 3; grid-row: 1 / span 2; align-self: start; }
+
+  /* box 8 */
+  .th-ai { position: relative; margin: 0; min-height: 0; border-radius: 22px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.18); box-shadow: 0 20px 50px rgba(0,0,0,.5);
+    background: linear-gradient(160deg, #10301b, #06150b); }
+  .th-ai > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .th-ai-ph { position: absolute; inset: 14px; border: 2px dashed rgba(74,222,128,.45); border-radius: 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    text-align: center; padding: 1rem; color: rgba(255,255,255,.8); font-size: .85rem; }
+  .th-ai-ph strong { color: #4ade80; font-size: 1rem; }
+  .th-ai-ph code { background: rgba(255,255,255,.1); padding: 1px 6px; border-radius: 4px; }
+  .th-ai figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 28px 16px 12px; font-size: .78rem;
+    color: rgba(255,255,255,.85); background: linear-gradient(to top, rgba(0,0,0,.75), transparent); pointer-events: none; }
+  .th-badge { position: absolute; top: 14px; left: 14px; display: inline-flex; align-items: center; gap: 8px;
+    border-radius: 999px; border: 1px solid rgba(245,166,35,.45); background: rgba(0,0,0,.45);
+    padding: 6px 14px; font-size: .8rem; font-weight: 600; color: #F5A623; backdrop-filter: blur(8px); }
+  .th-badge-dot { width: 8px; height: 8px; border-radius: 50%; background: #F5A623; animation: pulse 2s infinite; }
+
+  /* SOLAR DEPT */
+  .th-solar { margin: 0; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; line-height: .95;
+    white-space: nowrap; color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,.55);
+    font-size: clamp(2rem, min(4.4vw, 11vh), 5.2rem); }
+  .th-solar span { color: #F5A623; }
+
+  /* box 9 */
+  .th-ticker { position: relative; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;
+    justify-content: center; border-radius: 20px; border: 1px solid rgba(255,255,255,.14);
+    background: linear-gradient(160deg, rgba(10,24,14,.74), rgba(0,0,0,.55)); backdrop-filter: blur(10px);
+    box-shadow: 0 20px 50px rgba(0,0,0,.45); padding: clamp(16px, 2.2vw, 32px); }
+  .th-words { margin: 0; display: flex; flex-wrap: wrap; gap: 0 .28em; font-weight: 900; text-transform: uppercase;
+    line-height: 1.02; letter-spacing: -0.01em; font-size: clamp(1.7rem, min(3.1vw, 7vh), 3.5rem); }
+  .th-word { display: inline-block; opacity: 0; transform: translateY(.6em);
+    animation: th-rise .55s cubic-bezier(.2,.7,.2,1) forwards; }
+  .th-desc { margin: 1rem 0 0; opacity: 0; animation: th-fade .6s ease forwards; line-height: 1.6;
+    font-size: clamp(.9rem, 1.1vw, 1.15rem); color: rgba(255,255,255,.8); max-width: 34em; }
+  .th-progress { position: absolute; left: 0; bottom: 0; height: 3px; background: #F5A623;
+    animation: th-prog ${HERO_SLIDE_MS}ms linear forwards; }
+  .th-dots { position: absolute; right: 18px; top: 16px; display: flex; gap: 8px; }
+  .th-dot { width: 8px; height: 8px; border-radius: 4px; border: 0; padding: 0; cursor: pointer;
+    background: rgba(255,255,255,.3); transition: all .3s; }
+  .th-dot[aria-current='true'] { width: 26px; background: #F5A623; }
+  .th-ctas { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+  .th-cta { display: inline-flex; align-items: center; gap: 8px; border-radius: 14px; padding: 12px 24px;
+    font-weight: 700; color: #fff; text-decoration: none; transition: all .2s; }
+  .th-cta-main { background: #F5A623; box-shadow: 0 8px 28px rgba(245,166,35,.35); }
+  .th-cta-main:hover { background: #e09520; }
+  .th-cta-ghost { border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.1); backdrop-filter: blur(8px); }
+  .th-cta-ghost:hover { background: rgba(255,255,255,.2); }
+  .th-checks { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: .78rem; color: rgba(255,255,255,.55); }
+
+  /* boxes 1 to 7 */
+  .th-strip { position: relative; z-index: 2; padding: 14px 2.5rem 18px; }
+  .th-viewport { overflow: hidden; container-type: inline-size; border-radius: 16px; }
+  .th-track { display: flex; width: max-content; animation: th-marquee 42s linear infinite; }
+  .th-strip:hover .th-track { animation-play-state: paused; }
+  .th-tile { position: relative; margin: 0 14px 0 0; flex: 0 0 150px; flex: 0 0 calc((100cqw - 84px) / 7);
+    height: clamp(86px, 15.5vh, 170px); border-radius: 14px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.2); box-shadow: 0 10px 28px rgba(0,0,0,.45); }
+  .th-tile img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .6s ease; }
+  .th-tile:hover img { transform: scale(1.06); }
+  .th-tile figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 10px 7px; font-size: .68rem;
+    font-weight: 600; color: #fff; background: linear-gradient(to top, rgba(0,0,0,.78), transparent); }
+
+  @keyframes th-rise { to { opacity: 1; transform: none; } }
+  @keyframes th-fade { to { opacity: 1; } }
+  @keyframes th-prog { from { width: 0; } to { width: 100%; } }
+  @keyframes th-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  @media (max-width: 1100px) {
+    .th-hero { height: auto; }
+    .th-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; padding-top: 100px; gap: 18px; }
+    .th-title, .th-ai, .th-center, .th-calc { grid-column: 1; grid-row: auto; }
+    .th-title { overflow: hidden; }
+    .th-ai { height: 300px; }
+    .th-center { min-height: 340px; }
+    .th-calc { max-width: 340px; width: 100%; justify-self: center; }
+    .th-tile { height: 110px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .th-track { animation: none; }
+    .th-word, .th-desc { animation: none; opacity: 1; transform: none; }
+    .th-progress { display: none; }
+  }
+`;
+
 export default function Home() {
   useDocumentTitle('Home');
   const navigate = useNavigate();
@@ -192,19 +456,11 @@ export default function Home() {
         @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
         @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(6px)} }
         @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+        ${HERO_CSS}
       `}</style>
 
       {/* ══ HERO ══ */}
-      <section
-        style={{
-          position: 'relative',
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'flex-start',
-          marginTop: '-32px',
-        }}
-      >
+      <section className="th-hero" aria-label="TCOIN Solar Dept">
         {/* watermark logo */}
         <img
           src="/brand/TCOIN LOGO OFFICIAL.svg"
@@ -261,161 +517,56 @@ export default function Home() {
           }}
         />
 
-        {/* ── HERO CONTENT: full-width grid ── */}
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 2,
-            width: '100%',
-            padding: '110px 2.5rem 0',
-            boxSizing: 'border-box',
-            display: 'grid',
-            gridTemplateColumns: '1fr 272px',
-            gap: '0 3rem',
-            flex: 1,
-            alignItems: 'start',
-          }}
-        >
-          {/* ── HEADLINE (left) ── */}
-          <div style={{ gridColumn: 1, paddingBottom: '3rem' }}>
-            <div style={{ marginBottom: '18px' }}>
-              <span
-                style={{
-                  display: 'block',
-                  fontSize: 'clamp(1.1rem, 3.6vw, 4rem)',
-                  fontWeight: 900,
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
-                  lineHeight: 1,
-                  whiteSpace: 'nowrap',
-                  background:
-                    'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(200,230,255,0.75) 40%, rgba(255,255,255,0.55) 60%, rgba(180,220,255,0.85) 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  filter:
-                    'drop-shadow(0 2px 8px rgba(180,220,255,0.45)) drop-shadow(0 0 24px rgba(255,255,255,0.2))',
-                }}
-              >
-                TCOIN Center of Innovations
-              </span>
-            </div>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                borderRadius: '999px',
-                border: '1px solid rgba(245,166,35,.4)',
-                background: 'rgba(245,166,35,.12)',
-                padding: '6px 16px',
-                marginBottom: '24px',
-                backdropFilter: 'blur(8px)',
-              }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: '#F5A623',
-                  animation: 'pulse 2s infinite',
-                }}
-              />
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#F5A623' }}>
-                Uganda's #1 Solar Company
-              </span>
-            </div>
-            <h1
-              style={{
-                fontSize: 'clamp(2.8rem,5.5vw,5rem)',
-                fontWeight: 900,
-                lineHeight: 1.0,
-                letterSpacing: '-0.02em',
-                color: '#fff',
-                margin: 0,
-              }}
-            >
-              Power Your
-              <br />
-              <span style={{ color: '#F5A623' }}>Future</span>
-              <br />
-              With Solar
+        {/* ── FRONT SCREEN: everything below fits in the first viewport ── */}
+        <div className="th-grid">
+          {/* title row */}
+          <div className="th-title">
+            <h2 className="th-brand-title" aria-label={BRAND_TITLE}>
+              {BRAND_TITLE.split('').map((ch, i) =>
+                ch === ' ' ? (
+                  <span key={i} className="th-brand-space" aria-hidden />
+                ) : (
+                  <span
+                    key={i}
+                    className="th-brand-char"
+                    aria-hidden
+                    style={{ animationDelay: `${i * 60}ms` }}
+                  >
+                    {ch}
+                  </span>
+                ),
+              )}
+            </h2>
+          </div>
+
+          {/* box 8: AI-generated completed system (placeholder until the image is added) */}
+          <AiSystemShowcase />
+
+          {/* SOLAR DEPT + box 9 (animated words) + buttons */}
+          <div className="th-center">
+            <h1 className="th-solar">
+              SOLAR <span>DEPT</span>
             </h1>
-            <p
-              style={{
-                marginTop: '1.5rem',
-                maxWidth: '480px',
-                fontSize: '1.05rem',
-                lineHeight: 1.7,
-                color: 'rgba(255,255,255,.7)',
-              }}
-            >
-              Design, installation, maintenance and consultancy — all from one expert team in Kampala.
-            </p>
-            <div style={{ marginTop: '2rem', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-              <Link
-                to="/calculator"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  borderRadius: '14px',
-                  background: '#F5A623',
-                  padding: '14px 28px',
-                  fontWeight: 700,
-                  color: '#fff',
-                  textDecoration: 'none',
-                  boxShadow: '0 8px 32px rgba(245,166,35,.35)',
-                  transition: 'all .2s',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#e09520')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#F5A623')}
-              >
+            <HeroTicker />
+            <div className="th-ctas">
+              <Link to="/calculator" className="th-cta th-cta-main">
                 Get Free Estimate →
               </Link>
-              <Link
-                to="/store"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  borderRadius: '14px',
-                  border: '1px solid rgba(255,255,255,.3)',
-                  background: 'rgba(255,255,255,.1)',
-                  padding: '14px 28px',
-                  fontWeight: 700,
-                  color: '#fff',
-                  textDecoration: 'none',
-                  backdropFilter: 'blur(8px)',
-                  transition: 'all .2s',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.2)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.1)')}
-              >
+              <Link to="/store" className="th-cta th-cta-ghost">
                 Shop Components
               </Link>
             </div>
-            <div
-              style={{
-                marginTop: '2rem',
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '20px',
-                fontSize: '0.85rem',
-                color: 'rgba(255,255,255,.5)',
-              }}
-            >
+            <div className="th-checks">
               {['Free site survey', '5-year warranty', 'Flexible financing'].map((t) => (
-                <span key={t} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span key={t}>
                   <span style={{ color: '#F5A623' }}>✓</span> {t}
                 </span>
               ))}
             </div>
           </div>
 
-          {/* ── CALCULATOR DEVICE (right) ── */}
-          <div style={{ gridColumn: 2, alignSelf: 'start' }}>
+          {/* calculator (unchanged) */}
+          <div className="th-calc">
             <div
               style={{
                 borderRadius: '24px',
@@ -618,7 +769,6 @@ export default function Home() {
                     border: '1px solid rgba(29,100,52,.6)',
                     padding: '10px',
                     fontWeight: 700,
-                    fontSize: '0.8rem',
                     color: '#fff',
                     cursor: 'pointer',
                     boxShadow: '0 4px 14px rgba(29,100,52,.4), inset 0 1px 0 rgba(255,255,255,.1)',
@@ -677,70 +827,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* trust bar */}
-        <div
-          style={{
-            position: 'relative',
-            display: 'flex',
-            justifyContent: 'center',
-            padding: '0 1.5rem 1.5rem',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              gap: '1.5rem 3rem',
-              borderRadius: '16px',
-              border: '1px solid rgba(255,255,255,.1)',
-              background: 'rgba(255,255,255,.06)',
-              backdropFilter: 'blur(16px)',
-              padding: '1rem 2.5rem',
-            }}
-          >
-            {[
-              { n: '500+', l: 'Installations' },
-              { n: '10+', l: 'Years' },
-              { n: '98%', l: 'Satisfaction' },
-            ].map((item) => (
-              <div key={item.l} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#F5A623' }}>{item.n}</div>
-                <div
-                  style={{
-                    fontSize: '0.7rem',
-                    color: 'rgba(255,255,255,.5)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.1em',
-                  }}
-                >
-                  {item.l}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* scroll cue */}
-        <div
-          style={{ position: 'relative', display: 'flex', justifyContent: 'center', paddingBottom: '2rem' }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              color: 'rgba(255,255,255,.3)',
-              fontSize: '0.7rem',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-            }}
-          >
-            Scroll
-            <span style={{ animation: 'bounce 1.5s infinite', fontSize: '1.2rem' }}>↓</span>
-          </div>
-        </div>
+        {/* boxes 1 to 7: project photos moving left */}
+        <ProjectStrip />
       </section>
 
       {/* ══ STATS ══ */}

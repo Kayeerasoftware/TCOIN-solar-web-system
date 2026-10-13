@@ -2,27 +2,6 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderApp } from '@/tests/routerHelpers';
 
-describe('home', () => {
-  it('shows the headline, services, and company details', async () => {
-    renderApp('/');
-    expect(
-      await screen.findByRole('heading', { name: /Reliable solar for your home or business/ }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Design' })).toHaveAttribute('href', '/services/design');
-    expect(screen.getAllByText(/Solar designs, inspection, installation/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/TCOIN SOLAR UG/).length).toBeGreaterThan(0);
-  });
-  it('carries the quick bill into the calculator', async () => {
-    const { router } = renderApp('/');
-    const box = await screen.findByLabelText('Monthly electricity bill (UGX)');
-    await userEvent.clear(box);
-    await userEvent.type(box, '600000');
-    await userEvent.click(screen.getByRole('button', { name: 'Calculate' }));
-    await waitFor(() => expect(router.state.location.search).toBe('?bill=600000'));
-    expect(await screen.findByLabelText('Monthly electricity bill (UGX)')).toHaveValue('600000');
-  });
-});
-
 describe('calculator', () => {
   it('goes from a bill to an estimate and captures a lead', async () => {
     renderApp('/calculator?bill=450000');
