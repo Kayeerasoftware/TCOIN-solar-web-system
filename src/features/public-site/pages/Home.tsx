@@ -332,27 +332,24 @@ const BRAND_TITLE = 'TCOIN Center of Innovations';
 const HERO_CSS = `
   .th-hero { position: relative; height: 100vh; min-height: 700px; display: flex; flex-direction: column; margin-top: -32px; }
   .th-grid { position: relative; z-index: 2; flex: 1; min-height: 0; display: grid;
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.15fr) 272px; grid-template-rows: auto minmax(0, 1fr);
-    gap: 14px 2.2rem; padding: 104px 2.5rem 0; box-sizing: border-box; }
-  .th-title { grid-column: 1 / 3; grid-row: 1; align-self: end; display: flex; justify-content: center; }
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.15fr) 272px; grid-template-rows: auto 1fr auto;
+    gap: 10px 2.2rem; padding: 104px 2.5rem 0; box-sizing: border-box; }
+  .th-title { grid-column: 1 / 4; grid-row: 1; align-self: end; display: flex; justify-content: center; }
   .th-brand-title { display: flex; align-items: center; justify-content: center;
-    font-size: clamp(1rem, 2.2vw, 1.9rem); font-weight: 300; letter-spacing: 0.42em;
+    font-size: clamp(1rem, 2.2vw, 1.9rem); font-weight: 600; letter-spacing: 0.55em;
     text-transform: uppercase; line-height: 1; white-space: nowrap;
-    position: relative; padding-bottom: 10px; }
+    color: #fff; position: relative; padding-bottom: 10px;
+    font-family: 'Georgia', 'Times New Roman', serif; }
   .th-brand-title::after { content: ''; position: absolute; left: 0; bottom: 0;
     height: 1px; width: 100%;
     background: linear-gradient(90deg, transparent, rgba(245,166,35,.5), transparent);
     opacity: 0.6; }
-  .th-brand-char { display: inline-block; color: rgba(255,255,255,0.72);
-    animation: th-flag 2.8s ease-in-out infinite; }
+  .th-brand-char { display: inline-block; color: rgba(255,255,255,0.5); }
   .th-brand-space { display: inline-block; width: .28em; }
-  @keyframes th-flag {
-    0%, 100% { transform: translateY(0);    color: rgba(255,255,255,0.55); }
-    50%       { transform: translateY(-6px); color: rgba(245,166,35,1); }
-  }
-  .th-ai { grid-column: 1; grid-row: 2; }
-  .th-center { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
-  .th-calc { grid-column: 3; grid-row: 1 / span 2; align-self: start; }
+  .th-ai { grid-column: 1; grid-row: 2 / 4; }
+  .th-solar-row { grid-column: 2; grid-row: 2; align-self: start; padding-top: 18px; container-type: inline-size; }
+  .th-center { grid-column: 2; grid-row: 3; display: flex; flex-direction: column; gap: 12px; min-height: 0; align-self: end; }
+  .th-calc { grid-column: 3; grid-row: 2 / 4; align-self: stretch; }
 
   /* box 8 */
   .th-ai { position: relative; margin: 0; min-height: 0; border-radius: 22px; overflow: hidden;
@@ -372,18 +369,22 @@ const HERO_CSS = `
   .th-badge-dot { width: 8px; height: 8px; border-radius: 50%; background: #F5A623; animation: pulse 2s infinite; }
 
   /* SOLAR DEPT */
-  .th-solar { margin: 0; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; line-height: .95;
-    white-space: nowrap; color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,.55);
-    font-size: clamp(2rem, min(4.4vw, 11vh), 5.2rem); }
-  .th-solar span { color: #F5A623; }
+  .th-solar { margin: 0; font-weight: 900; text-transform: uppercase; letter-spacing: -.02em; line-height: .95;
+    color: transparent; text-shadow: none; width: 100%; display: block;
+    white-space: nowrap; font-size: 17cqi;
+    -webkit-text-stroke: 2px rgba(245,166,35,0.55);
+    background: linear-gradient(135deg, rgba(245,166,35,0.7) 0%, rgba(255,255,255,0.15) 60%, rgba(245,166,35,0.4) 100%);
+    -webkit-background-clip: text; background-clip: text; }
+  .th-solar span { color: inherit; -webkit-text-stroke: inherit; }
 
   /* box 9 */
-  .th-ticker { position: relative; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;
+  .th-ticker { position: relative; overflow: hidden; display: flex; flex-direction: column;
     justify-content: center; border-radius: 20px; border: 1px solid rgba(255,255,255,.14);
     background: linear-gradient(160deg, rgba(10,24,14,.74), rgba(0,0,0,.55)); backdrop-filter: blur(10px);
-    box-shadow: 0 20px 50px rgba(0,0,0,.45); padding: clamp(16px, 2.2vw, 32px); }
+    box-shadow: 0 20px 50px rgba(0,0,0,.45); padding: clamp(14px, 1.8vw, 24px);
+    height: 220px; flex-shrink: 0; }
   .th-words { margin: 0; display: flex; flex-wrap: wrap; gap: 0 .28em; font-weight: 900; text-transform: uppercase;
-    line-height: 1.02; letter-spacing: -0.01em; font-size: clamp(1.7rem, min(3.1vw, 7vh), 3.5rem); }
+    line-height: 1.02; letter-spacing: -0.01em; font-size: clamp(1rem, min(1.9vw, 4.5vh), 2rem); }
   .th-word { display: inline-block; opacity: 0; transform: translateY(.6em);
     animation: th-rise .55s cubic-bezier(.2,.7,.2,1) forwards; }
   .th-desc { margin: 1rem 0 0; opacity: 0; animation: th-fade .6s ease forwards; line-height: 1.6;
@@ -394,13 +395,36 @@ const HERO_CSS = `
   .th-dot { width: 8px; height: 8px; border-radius: 4px; border: 0; padding: 0; cursor: pointer;
     background: rgba(255,255,255,.3); transition: all .3s; }
   .th-dot[aria-current='true'] { width: 26px; background: #F5A623; }
-  .th-ctas { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
-  .th-cta { display: inline-flex; align-items: center; gap: 8px; border-radius: 14px; padding: 12px 24px;
-    font-weight: 700; color: #fff; text-decoration: none; transition: all .2s; }
-  .th-cta-main { background: #F5A623; box-shadow: 0 8px 28px rgba(245,166,35,.35); }
-  .th-cta-main:hover { background: #e09520; }
-  .th-cta-ghost { border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.1); backdrop-filter: blur(8px); }
-  .th-cta-ghost:hover { background: rgba(255,255,255,.2); }
+  .th-ctas { display: flex; flex-wrap: nowrap; align-items: center; gap: 10px 12px; }
+  .th-cta { display: inline-flex; align-items: center; gap: 8px; border-radius: 8px; padding: 13px 22px;
+    font-weight: 700; font-size: .92rem; color: #fff; text-decoration: none; transition: all .15s ease;
+    letter-spacing: .01em; white-space: nowrap; cursor: pointer; position: relative; overflow: hidden; }
+  .th-cta-main {
+    background: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 100%);
+    border: 1px solid #000;
+    box-shadow: 0 1px 0 rgba(255,255,255,.12) inset, 0 4px 0 #000, 0 5px 10px rgba(0,0,0,.5);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  }
+  .th-cta-main:hover {
+    background: linear-gradient(180deg, #444 0%, #222 100%);
+    box-shadow: 0 1px 0 rgba(255,255,255,.12) inset, 0 5px 0 #000, 0 7px 14px rgba(0,0,0,.55);
+    transform: translateY(-1px);
+  }
+  .th-cta-main:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 1px 0 #000, 0 2px 4px rgba(0,0,0,.4); }
+  .th-cta-ghost {
+    background: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 100%);
+    border: 1px solid #000;
+    box-shadow: 0 1px 0 rgba(255,255,255,.12) inset, 0 4px 0 #000, 0 5px 10px rgba(0,0,0,.5);
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  }
+  .th-cta-ghost:hover {
+    background: linear-gradient(180deg, #444 0%, #222 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 1px 0 rgba(255,255,255,.12) inset, 0 5px 0 #000, 0 7px 14px rgba(0,0,0,.55);
+  }
+  .th-cta-ghost:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 1px 0 #000, 0 2px 4px rgba(0,0,0,.4); }
   .th-checks { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: .78rem; color: rgba(255,255,255,.55); }
 
   /* boxes 1 to 7 */
@@ -542,11 +566,15 @@ export default function Home() {
           {/* box 8: AI-generated completed system (placeholder until the image is added) */}
           <AiSystemShowcase />
 
-          {/* SOLAR DEPT + box 9 (animated words) + buttons */}
-          <div className="th-center">
+          {/* SOLAR DEPT — decoupled, sits in its own row */}
+          <div className="th-solar-row">
             <h1 className="th-solar">
               SOLAR <span>DEPT</span>
             </h1>
+          </div>
+
+          {/* box 9 (animated words) + buttons */}
+          <div className="th-center">
             <HeroTicker />
             <div className="th-ctas">
               <Link to="/calculator" className="th-cta th-cta-main">
@@ -569,11 +597,15 @@ export default function Home() {
           <div className="th-calc">
             <div
               style={{
+                height: '100%',
                 borderRadius: '24px',
                 background: 'linear-gradient(160deg, #1a2a1e 0%, #0d1a10 100%)',
                 border: '1.5px solid rgba(255,255,255,.1)',
                 boxShadow: '0 24px 60px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.08)',
                 padding: '16px 15px 18px',
+                boxSizing: 'border-box',
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
               {/* grille dots */}
@@ -678,6 +710,7 @@ export default function Home() {
               </div>
               {/* form */}
               <form
+                style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
                 onSubmit={(e) => {
                   e.preventDefault();
                   navigate(`/calculator?bill=${bill}`);
@@ -733,10 +766,27 @@ export default function Home() {
                     gridTemplateColumns: 'repeat(3,1fr)',
                     gap: '5px',
                     marginBottom: '8px',
+                    flex: 1,
+                    alignContent: 'start',
                   }}
                 >
-                  {['150k', '300k', '450k', '600k', '900k', '1.2M'].map((label) => {
-                    const val = label === '1.2M' ? '1200000' : String(parseInt(label) * 1000);
+                  {[
+                    '150k',
+                    '300k',
+                    '450k',
+                    '600k',
+                    '750k',
+                    '900k',
+                    '1.1M',
+                    '1.2M',
+                    '1.5M',
+                    '1.8M',
+                    '2M',
+                    '2.5M',
+                  ].map((label) => {
+                    const val = label.endsWith('M')
+                      ? String(parseFloat(label) * 1_000_000)
+                      : String(parseInt(label) * 1000);
                     return (
                       <button
                         key={label}
