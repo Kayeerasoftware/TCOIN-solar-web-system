@@ -2,6 +2,11 @@ import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { LoadingState } from '@/components/feedback/LoadingState';
+import '../portal.css';
+
+function fmt(n: string | number) {
+  return Number(n).toLocaleString('en-UG');
+}
 
 export default function ProjectTimeline() {
   const { id } = useParams<{ id: string }>();
@@ -16,63 +21,214 @@ export default function ProjectTimeline() {
     enabled: !!id,
   });
 
-  if (isLoading) return <LoadingState />;
-  if (!project) return <p className="p-8 text-ink-muted">Project not found.</p>;
+  if (isLoading)
+    return (
+      <div className="pt-doc" style={{ padding: 32 }}>
+        <LoadingState />
+      </div>
+    );
+  if (!project)
+    return (
+      <div className="pt-doc">
+        <div className="pt-empty">
+          <p>Project not found.</p>
+        </div>
+      </div>
+    );
+
+  const pct = project.progress_pct ?? 0;
+  const done = pct === 100;
+  const ms: { id: string; seq: number; name: string; due_date?: string; status: string }[] = milestones ?? [];
 
   return (
-    <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold text-brand-green">{project.name ?? project.project_no}</h1>
-      <p className="text-sm text-ink-muted capitalize">Status: {project.status}</p>
-
-      <div className="mt-4">
-        <div className="flex justify-between text-xs text-ink-muted mb-1">
-          <span>Overall progress</span>
-          <span>{project.progress_pct ?? 0}%</span>
+    <div className="pt-doc">
+      <div
+        className="pt-page-head"
+        style={{
+          position: 'relative',
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          padding: 0,
+          minHeight: 72,
+        }}
+      >
+        <img
+          src="/brand/TCOIN LOGO OFFICIAL.svg"
+          alt=""
+          aria-hidden
+          style={{
+            position: 'absolute',
+            right: -10,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            height: '160%',
+            width: 'auto',
+            opacity: 0.07,
+            pointerEvents: 'none',
+            userSelect: 'none',
+          }}
+        />
+        <div
+          style={{
+            width: 72,
+            height: 72,
+            flexShrink: 0,
+            background: '#f1f4f1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#9ba19d',
+            fontSize: 28,
+          }}
+        >
+          ⚙
         </div>
-        <div className="h-3 rounded-full bg-surface-alt">
+        <div style={{ padding: '14px 22px 12px 0', flex: 1 }}>
+          <h1>{project.name ?? project.project_no}</h1>
+          <p style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ textTransform: 'capitalize' }}>{project.status?.replace(/_/g, ' ')}</span>
+            <span style={{ color: '#9ba19d' }}>·</span>
+            <span>{pct}% complete</span>
+          </p>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ padding: '12px 22px', borderBottom: '1px solid #9ba19d' }}>
+        <div className="pt-progress-track">
           <div
-            className="h-3 rounded-full bg-brand-green transition-all"
-            style={{ width: `${project.progress_pct ?? 0}%` }}
+            className={done ? 'pt-progress-fill pt-progress-fill-done' : 'pt-progress-fill'}
+            style={{ width: `${pct}%` }}
           />
         </div>
       </div>
 
-      <div className="mt-8">
-        <h2 className="font-bold">Milestones</h2>
-        <div className="mt-4 space-y-3">
-          {(milestones ?? []).map(
-            (m: { id: string; seq: number; name: string; due_date?: string; status: string }) => (
-              <div key={m.id} className="flex items-center gap-4 rounded-lg border border-line bg-white p-4">
-                <div
-                  className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${m.status === 'done' ? 'bg-brand-green text-white' : 'bg-surface-alt text-ink-muted'}`}
-                >
-                  {m.status === 'done' ? '✓' : m.seq}
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium">{m.name}</p>
-                  {m.due_date && (
-                    <p className="text-xs text-ink-muted">Due {new Date(m.due_date).toLocaleDateString()}</p>
-                  )}
-                </div>
-                <span className="text-xs capitalize text-ink-muted">{m.status}</span>
-              </div>
-            ),
-          )}
-          {(milestones ?? []).length === 0 && <p className="text-sm text-ink-muted">No milestones yet.</p>}
+      {/* Milestones */}
+      <div className="pt-section">
+        <div className="pt-section-head">
+          <h2>Milestones</h2>
         </div>
+        {ms.length === 0 && (
+          <div className="pt-empty" style={{ padding: '24px 0' }}>
+            <span>No milestones yet.</span>
+          </div>
+        )}
+        {ms.length > 0 && (
+          <>
+            <div className="pt-row pt-row-head" style={{ gridTemplateColumns: '44px 1fr 140px 80px' }}>
+              <span style={{ justifyContent: 'center' }}>#</span>
+              <span>Milestone</span>
+              <span>Due date</span>
+              <span style={{ justifyContent: 'center' }}>Status</span>
+            </div>
+            {ms.map((m) => (
+              <div key={m.id} className="pt-row" style={{ gridTemplateColumns: '44px 1fr 140px 80px' }}>
+                <span style={{ justifyContent: 'center' }}>
+                  <span
+                    style={{
+                      display: 'grid',
+                      placeItems: 'center',
+                      width: 24,
+                      height: 24,
+                      borderRadius: '50%',
+                      background: m.status === 'done' ? '#14723a' : '#e0e5e2',
+                      color: m.status === 'done' ? '#fff' : '#69736d',
+                      fontSize: 10,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {m.status === 'done' ? '✓' : m.seq}
+                  </span>
+                </span>
+                <span style={{ fontWeight: 600, fontSize: 12, color: '#1d2f25' }}>{m.name}</span>
+                <span style={{ fontSize: 11, color: '#69736d' }}>
+                  {m.due_date
+                    ? new Date(m.due_date).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })
+                    : '—'}
+                </span>
+                <span style={{ justifyContent: 'center' }}>
+                  <span
+                    className={
+                      m.status === 'done' ? 'pt-status pt-status-green' : 'pt-status pt-status-amber'
+                    }
+                    style={{ textTransform: 'capitalize' }}
+                  >
+                    {m.status}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       {project.contract_value && (
-        <div className="mt-6 rounded-lg border border-line bg-white p-4 text-sm">
-          <p>
-            Contract value:{' '}
-            <strong>
-              {project.contract_value.currency} {Number(project.contract_value.amount).toLocaleString()}
-            </strong>
-          </p>
-          {project.manager_id && <p className="mt-1 text-ink-muted">Project manager assigned</p>}
+        <div className="pt-section">
+          <div className="pt-section-head">
+            <h2>Contract</h2>
+          </div>
+          <div className="pt-section-body" style={{ padding: '12px 22px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 0',
+                borderBottom: '1px solid #f1f4f1',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 9,
+                  color: '#69736d',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  fontWeight: 800,
+                }}
+              >
+                Contract value
+              </span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: '#1d2f25', fontFamily: 'Georgia, serif' }}>
+                {project.contract_value.currency} {fmt(project.contract_value.amount)}
+              </span>
+            </div>
+            {project.manager_id && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 0',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 9,
+                    color: '#69736d',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    fontWeight: 800,
+                  }}
+                >
+                  Project manager
+                </span>
+                <span style={{ fontSize: 13, color: '#3c4540' }}>Assigned</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
+
+      <div className="pt-doc-footer">
+        <span>TCOIN Solar UG · Customer Portal</span>
+        <span>All figures are indicative pending confirmation.</span>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,15 @@
 import { PERMISSIONS } from '@/lib/permissions';
 import { amountInWords } from '@/lib/amountInWords';
 import type { Customer, Lead, Product, Quote, Receipt } from '@/types/api';
+import {
+  MOCK_PROJECTS,
+  MOCK_MILESTONES,
+  MOCK_ASSETS,
+  MOCK_WARRANTIES,
+  MOCK_INVOICES,
+  MOCK_TICKETS,
+  MOCK_ORDERS,
+} from './fixtures/portal';
 
 export interface MockUser {
   id: string;
@@ -8,6 +17,7 @@ export interface MockUser {
   phone: string;
   password: string;
   full_name: string;
+  avatar?: string | null;
   user_type: 'staff' | 'customer';
   customer_id: string | null;
   roles: string[];
@@ -59,6 +69,7 @@ const seed = () => ({
       phone: '+256779116709',
       password: 'Admin@123',
       full_name: 'Kayeera Nathan',
+      avatar: '/profile/kayeera-nathan.png',
       user_type: 'staff',
       customer_id: null,
       roles: ['admin'],
@@ -70,6 +81,7 @@ const seed = () => ({
       phone: '+256705998786',
       password: 'Admin@123',
       full_name: 'MFA Officer',
+      avatar: null,
       user_type: 'staff',
       customer_id: null,
       roles: ['finance'],
@@ -82,6 +94,7 @@ const seed = () => ({
       phone: '+256700111222',
       password: 'Customer@123',
       full_name: 'Sarah N.',
+      avatar: null,
       user_type: 'customer',
       customer_id: 'c1',
       roles: ['customer'],
@@ -398,6 +411,13 @@ const seed = () => ({
   ] as Lead[],
   quotes: [sampleQuote()] as Quote[],
   receipts: [] as Receipt[],
+  projects: MOCK_PROJECTS.map((p) => ({ ...p, customer_id: 'c1' })),
+  milestones: MOCK_MILESTONES,
+  assets: MOCK_ASSETS.map((a) => ({ ...a, customer_id: 'c1' })),
+  warranties: MOCK_WARRANTIES,
+  invoices: MOCK_INVOICES.map((i) => ({ ...i, customer_id: 'c1' })),
+  tickets: MOCK_TICKETS.map((t) => ({ ...t, customer_id: 'c1' })),
+  orders: MOCK_ORDERS.map((o) => ({ ...o, customer_id: 'c1' })),
   series: { proforma: 248, corporate: 0, cash_sales: 0, quote: 118, lead: 104 } as Record<string, number>,
 });
 

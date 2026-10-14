@@ -2,16 +2,15 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/feedback/LoadingState';
+import '../portal.css';
 
-const STATUS_TONE: Record<string, 'green' | 'amber' | 'red' | 'grey'> = {
-  open: 'amber',
-  responded: 'green',
-  resolving: 'green',
-  resolved: 'green',
-  closed: 'grey',
+const STATUS_CLASS: Record<string, string> = {
+  open: 'pt-status pt-status-amber',
+  responded: 'pt-status pt-status-green',
+  resolving: 'pt-status pt-status-green',
+  resolved: 'pt-status pt-status-green',
+  closed: 'pt-status pt-status-grey',
 };
 
 export default function TicketThread() {
@@ -36,101 +35,203 @@ export default function TicketThread() {
     },
   });
 
-  if (isLoading) return <LoadingState />;
+  if (isLoading)
+    return (
+      <div className="pt-doc" style={{ padding: 32 }}>
+        <LoadingState />
+      </div>
+    );
   if (!ticket)
     return (
-      <p className="p-8 text-ink-muted">
-        Ticket not found.{' '}
-        <Link to="/portal/support/new" className="text-brand-green underline">
-          Raise a new ticket
-        </Link>
-      </p>
+      <div className="pt-doc">
+        <div className="pt-empty">
+          <p>Ticket not found.</p>
+          <Link to="/portal/support/new" className="pt-link" style={{ fontSize: 12 }}>
+            Raise a new ticket →
+          </Link>
+        </div>
+      </div>
     );
 
   const canReply = ticket.status !== 'closed';
 
   return (
-    <div className="max-w-2xl space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold">{ticket.subject}</h1>
-          <p className="mt-0.5 text-xs text-ink-muted">
-            {ticket.ticket_no} · {ticket.category} · Priority:{' '}
-            <span className="capitalize">{ticket.priority}</span>
+    <div className="pt-doc">
+      <div
+        className="pt-page-head"
+        style={{
+          position: 'relative',
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          padding: 0,
+          minHeight: 72,
+        }}
+      >
+        <img
+          src="/brand/TCOIN LOGO OFFICIAL.svg"
+          alt=""
+          aria-hidden
+          style={{
+            position: 'absolute',
+            right: -10,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            height: '160%',
+            width: 'auto',
+            opacity: 0.07,
+            pointerEvents: 'none',
+            userSelect: 'none',
+          }}
+        />
+        <div
+          style={{
+            width: 72,
+            height: 72,
+            flexShrink: 0,
+            background: '#f1f4f1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#9ba19d',
+            fontSize: 28,
+          }}
+        >
+          ✉
+        </div>
+        <div style={{ padding: '14px 0 12px 0', flex: 1 }}>
+          <h1>{ticket.subject}</h1>
+          <p style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>{ticket.ticket_no}</span>
+            <span style={{ color: '#9ba19d' }}>·</span>
+            <span>{ticket.category}</span>
+            <span style={{ color: '#9ba19d' }}>·</span>
+            <span style={{ textTransform: 'capitalize' }}>Priority: {ticket.priority}</span>
           </p>
         </div>
-        <Badge tone={STATUS_TONE[ticket.status] ?? 'grey'}>{ticket.status}</Badge>
+        <div style={{ padding: '0 22px', flexShrink: 0 }}>
+          <span className={STATUS_CLASS[ticket.status] ?? 'pt-status pt-status-grey'}>{ticket.status}</span>
+        </div>
       </div>
 
       {/* Original description */}
       {ticket.description && (
-        <div className="rounded-lg border border-line bg-white p-4">
-          <p className="mb-1 text-xs font-medium text-ink-muted uppercase tracking-wide">Your message</p>
-          <p className="text-sm text-ink">{ticket.description}</p>
+        <div className="pt-section">
+          <div className="pt-section-head">
+            <h2>Your message</h2>
+          </div>
+          <div className="pt-section-body" style={{ padding: '14px 22px' }}>
+            <p style={{ margin: 0, fontSize: 13, color: '#3c4540' }}>{ticket.description}</p>
+          </div>
         </div>
       )}
 
-      {/* SLA info */}
+      {/* SLA */}
       {(ticket.sla_response_due || ticket.sla_resolution_due) && (
-        <div className="grid grid-cols-2 gap-3">
-          {ticket.sla_response_due && (
-            <div className="rounded border border-line bg-white p-3">
-              <p className="text-xs text-ink-muted">Response due</p>
-              <p className="mt-0.5 text-sm font-medium">
-                {new Date(ticket.sla_response_due).toLocaleString()}
-              </p>
-            </div>
-          )}
-          {ticket.sla_resolution_due && (
-            <div className="rounded border border-line bg-white p-3">
-              <p className="text-xs text-ink-muted">Resolution due</p>
-              <p className="mt-0.5 text-sm font-medium">
-                {new Date(ticket.sla_resolution_due).toLocaleString()}
-              </p>
-            </div>
-          )}
+        <div className="pt-section">
+          <div className="pt-section-head">
+            <h2>SLA</h2>
+          </div>
+          <div className="pt-section-body" style={{ padding: '4px 22px 14px' }}>
+            {ticket.sla_response_due && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '10px 0',
+                  borderBottom: '1px solid #f1f4f1',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 9,
+                    color: '#69736d',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    fontWeight: 800,
+                  }}
+                >
+                  Response due
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#1d2f25' }}>
+                  {new Date(ticket.sla_response_due).toLocaleString()}
+                </span>
+              </div>
+            )}
+            {ticket.sla_resolution_due && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0' }}>
+                <span
+                  style={{
+                    fontSize: 9,
+                    color: '#69736d',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    fontWeight: 800,
+                  }}
+                >
+                  Resolution due
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#1d2f25' }}>
+                  {new Date(ticket.sla_resolution_due).toLocaleString()}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Reply box */}
+      {/* Reply */}
       {canReply && (
-        <div className="rounded-lg border border-line bg-white p-4">
-          <p className="mb-2 text-sm font-medium">Add a reply</p>
-          {sent && (
-            <p className="mb-2 rounded bg-green-50 px-3 py-2 text-sm text-brand-green">
-              Reply sent. Our team will respond shortly.
-            </p>
-          )}
-          <textarea
-            className="w-full rounded border border-line px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-green"
-            rows={4}
-            placeholder="Describe any updates or additional information…"
-            value={reply}
-            onChange={(e) => {
-              setReply(e.target.value);
-              setSent(false);
-            }}
-          />
-          <div className="mt-2 flex justify-end">
-            <Button onClick={() => sendReply.mutate()} busy={sendReply.isPending} disabled={!reply.trim()}>
-              Send reply
-            </Button>
+        <div className="pt-section">
+          <div className="pt-section-head">
+            <h2>Add a reply</h2>
+          </div>
+          <div
+            className="pt-section-body"
+            style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}
+          >
+            {sent && (
+              <div className="pt-alert pt-alert-green" style={{ borderBottom: 'none' }}>
+                Reply sent. Our team will respond shortly.
+              </div>
+            )}
+            <textarea
+              className="pt-textarea"
+              rows={4}
+              placeholder="Describe any updates or additional information…"
+              value={reply}
+              onChange={(e) => {
+                setReply(e.target.value);
+                setSent(false);
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                className="pt-btn-primary"
+                onClick={() => sendReply.mutate()}
+                disabled={sendReply.isPending || !reply.trim()}
+              >
+                {sendReply.isPending ? 'Sending…' : 'Send reply →'}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {ticket.status === 'closed' && (
-        <div className="rounded-lg border border-line bg-surface-alt p-4 text-sm text-ink-muted">
+        <div className="pt-alert pt-alert-green" style={{ margin: '0' }}>
           This ticket is closed.{' '}
-          <Link to="/portal/support/new" className="text-brand-green underline">
-            Open a new ticket
-          </Link>{' '}
-          if you need further assistance.
+          <Link to="/portal/support/new" className="pt-link">
+            Open a new ticket →
+          </Link>
         </div>
       )}
 
-      <p className="text-xs text-ink-muted">For urgent issues call our hotline directly.</p>
+      <div className="pt-doc-footer">
+        <span>TCOIN Solar UG · Customer Portal</span>
+        <span>For urgent issues call our hotline directly.</span>
+      </div>
     </div>
   );
 }

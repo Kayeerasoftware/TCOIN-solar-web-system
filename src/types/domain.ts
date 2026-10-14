@@ -16,6 +16,7 @@ export interface LineItem {
 export interface AuthUser {
   id: string;
   full_name: string;
+  avatar?: string | null;
   user_type: UserType;
   customer_id: string | null;
   roles: string[];
