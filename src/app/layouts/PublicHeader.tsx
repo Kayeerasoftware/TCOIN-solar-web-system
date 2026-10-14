@@ -34,7 +34,7 @@ const SERVICES = [
 
 const NAV_LINKS = [
   { label: 'Calculator', to: '/calculator' },
-  { label: 'Store', to: '/store' },
+  { label: 'Store/Shop', to: '/store' },
   { label: 'Projects', to: '/projects' },
   { label: 'About', to: '/about' },
   { label: 'Contact', to: '/contact' },
