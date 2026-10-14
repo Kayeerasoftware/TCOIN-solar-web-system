@@ -15,37 +15,58 @@ export default function OrderConfirmation() {
   });
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-16">
-      <div className="rounded-xl border border-line bg-white p-8 text-center">
-        <div className="text-6xl">✅</div>
-        <h1 className="mt-4 text-2xl font-bold text-brand-green">Order confirmed!</h1>
+    <div style={{ maxWidth: 600, margin: '60px auto', padding: '0 20px' }}>
+      <div
+        style={{
+          background: '#fff',
+          border: '1px solid #e8e8e8',
+          borderRadius: 4,
+          padding: '48px 40px',
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ fontSize: 64 }}>✅</div>
+        <h1 style={{ margin: '16px 0 8px', fontSize: 24, fontWeight: 900, color: '#1d6434' }}>
+          Order confirmed!
+        </h1>
         {order && (
-          <div className="mt-3 space-y-1 text-sm text-ink-muted">
-            <p>
-              Order <span className="font-bold text-ink">#{order.order_no}</span>
+          <div style={{ fontSize: 13, color: '#666', lineHeight: 1.8 }}>
+            <p style={{ margin: 0 }}>
+              Order <strong style={{ color: '#1a1a1a' }}>#{order.order_no}</strong>
             </p>
             {order.total?.amount && (
-              <p>
-                Total: <span className="font-bold text-ink">UGX {fmt(order.total.amount)}</span>
+              <p style={{ margin: 0 }}>
+                Total: <strong style={{ color: '#1d6434' }}>UGX {fmt(order.total.amount)}</strong>
               </p>
             )}
-            {order.placed_at && <p>Placed {new Date(order.placed_at).toLocaleString()}</p>}
+            {order.placed_at && (
+              <p style={{ margin: 0 }}>Placed {new Date(order.placed_at).toLocaleString()}</p>
+            )}
           </div>
         )}
-        <p className="mt-5 text-sm text-ink-muted">
+        <p style={{ margin: '16px 0 28px', fontSize: 13, color: '#888' }}>
           We'll contact you to arrange delivery and confirm payment details.
         </p>
-        <div className="mt-8 flex flex-col gap-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <Link
             to={`/orders/${id}/tracking`}
-            className="rounded-lg bg-brand-green px-6 py-2.5 text-sm font-bold text-white hover:brightness-95"
+            style={{
+              display: 'block',
+              padding: '12px 0',
+              background: '#1d6434',
+              color: '#fff',
+              borderRadius: 4,
+              fontWeight: 700,
+              fontSize: 14,
+              textDecoration: 'none',
+            }}
           >
             Track this order
           </Link>
-          <Link to="/store" className="text-sm text-brand-green hover:underline">
+          <Link to="/store" style={{ fontSize: 13, color: '#1d6434', textDecoration: 'underline' }}>
             Continue shopping
           </Link>
-          <Link to="/portal/orders" className="text-sm text-brand-green hover:underline">
+          <Link to="/portal/orders" style={{ fontSize: 13, color: '#1d6434', textDecoration: 'underline' }}>
             View all my orders
           </Link>
         </div>

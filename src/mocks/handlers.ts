@@ -145,9 +145,22 @@ export const handlers = [
       ? HttpResponse.json({ data: db.customers, next_cursor: null })
       : problem(401, 'unauthorized', 'Sign in required'),
   ),
-  http.get(`${base}/catalog/products`, () => HttpResponse.json({ data: db.products, next_cursor: null })),
+  http.get(`${base}/catalog/products`, ({ request }) => {
+    const url = new URL(request.url);
+    const category = url.searchParams.get('category');
+    const q = url.searchParams.get('q')?.toLowerCase();
+    let products = db.products;
+    if (category) products = products.filter((p) => p.category === category);
+    if (q)
+      products = products.filter(
+        (p) => p.name.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q),
+      );
+    return HttpResponse.json({ data: products, next_cursor: null });
+  }),
   http.get(`${base}/catalog/products/:slug`, ({ params }) => {
-    const p = db.products.find((x) => x.id === params.slug || x.variants.some((v) => v.sku === params.slug));
+    const p = db.products.find(
+      (x) => x.id === params.slug || x.slug === params.slug || x.variants.some((v) => v.sku === params.slug),
+    );
     return p ? HttpResponse.json(p) : HttpResponse.json({ title: 'Not found', status: 404 }, { status: 404 });
   }),
   http.get(`${base}/quotes`, ({ request }) => {
