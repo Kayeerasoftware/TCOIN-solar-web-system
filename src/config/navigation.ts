@@ -17,7 +17,8 @@ export const publicMenu: MenuItem[] = [
 
 export const portalMenu: MenuItem[] = [
   { label: 'Dashboard', to: '/portal' },
-  { label: 'Quotes', to: '/portal/quotes' },
+  { label: 'Invoices & Quotes', to: '/portal/quotes' },
+  { label: 'My Invoices', to: '/portal/invoices' },
   { label: 'Projects', to: '/portal/projects' },
   { label: 'My systems', to: '/portal/systems' },
   { label: 'Warranties', to: '/portal/warranties' },

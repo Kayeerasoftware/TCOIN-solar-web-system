@@ -23,6 +23,7 @@ const NAV_GROUPS = [
     label: 'Finance',
     items: [
       { label: 'Billing', to: '/portal/billing', icon: '₤' },
+      { label: 'Invoices', to: '/portal/invoices', icon: '🧾' },
       { label: 'Orders', to: '/portal/orders', icon: '📦' },
     ],
   },
