@@ -56,20 +56,25 @@ export function deleteQuote(id: string): void {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-function makeEstRef(seq: number): string {
+function makeRef(prefix: string, seq: number): string {
   const d = new Date();
   const day = String(d.getDate()).padStart(2, '0');
   const month = MONTHS[d.getMonth()];
   const year = d.getFullYear();
-  return `TCOIN-SLA-EST${String(seq).padStart(3, '0')}\u2013${day}${month}${year}`;
+  return `TCOIN-SLA-${prefix}${String(seq).padStart(3, '0')}\u2013${day}${month}${year}`;
 }
 
 let _seq = loadSavedQuotes().length + 1;
 export function nextRef(): string {
-  return makeEstRef(_seq++);
+  return makeRef('EST', _seq++);
 }
 
 let _estSeq = loadSavedQuotes().filter((q) => q.source === 'maker').length + 1;
 export function nextEstRef(): string {
-  return makeEstRef(_estSeq++);
+  return makeRef('EST', _estSeq++);
+}
+
+let _qtnSeq = loadSavedQuotes().filter((q) => q.source === 'free_request').length + 1;
+export function nextQtnRef(): string {
+  return makeRef('QTN', _qtnSeq++);
 }

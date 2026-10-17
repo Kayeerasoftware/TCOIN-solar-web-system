@@ -135,6 +135,7 @@ const seed = () => ({
       name: 'Mono Panel 550W',
       warranty_months: 300,
       spec_text: 'Mono PERC 550 W, 2278 x 1134 mm',
+      images: [{ url: '/products display/Solar-panels.jpg' }],
       variants: [
         {
           id: 'v-pv550',
@@ -155,6 +156,7 @@ const seed = () => ({
       name: 'Hybrid Inverter 8kW',
       warranty_months: 24,
       spec_text: '8 kW, 48 V battery, 2 MPPT, 500 V DC max',
+      images: [{ url: '/products display/Inverter.jpg' }],
       variants: [
         {
           id: 'v-inv8',
@@ -175,6 +177,7 @@ const seed = () => ({
       name: 'Solar Lithium Iron Battery 5kWh',
       warranty_months: 120,
       spec_text: 'Lithium Battery, 24V, 200AH, 5kWh, 6000 cycles at 80% DoD',
+      images: [{ url: '/products display/battery.jpg' }],
       variants: [
         {
           id: 'v-bat5',
@@ -255,6 +258,7 @@ const seed = () => ({
       name: '370W Polycrystalline Panel',
       warranty_months: 120,
       spec_text: 'Poly 370W, 1960×992mm',
+      images: [{ url: '/products display/Solar-panels.jpg' }],
       variants: [
         {
           id: 'v-cs370',
@@ -275,6 +279,7 @@ const seed = () => ({
       name: '3kVA Inverter/Charger',
       warranty_months: 60,
       spec_text: '3000VA/2400W, 48V, 96% efficiency',
+      images: [{ url: '/products display/Inverter.jpg' }],
       variants: [
         {
           id: 'v-vic3k',
@@ -295,6 +300,7 @@ const seed = () => ({
       name: '225Ah Flooded Lead-Acid Battery',
       warranty_months: 12,
       spec_text: '225Ah, 6V, flooded lead-acid',
+      images: [{ url: '/products display/battery.jpg' }],
       variants: [
         {
           id: 'v-trj',

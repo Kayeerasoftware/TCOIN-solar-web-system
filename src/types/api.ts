@@ -51,6 +51,7 @@ export interface Product {
   specs: Record<string, string>;
   warranty_months: number;
   spec_text?: string;
+  images?: { url: string }[];
   variants: {
     id: string;
     sku: string;
