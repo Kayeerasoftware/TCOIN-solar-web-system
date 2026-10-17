@@ -389,6 +389,7 @@ export const handlers = [
   http.post(`${base}/orders`, async ({ request }) => {
     const u = userOf(request);
     if (!u) return problem(401, 'unauthorized', 'Sign in required');
+    if (!u.customer_id) return problem(403, 'forbidden', 'Customer account required');
     const b = (await request.json()) as {
       items: { variant_id: string; quantity: number }[];
       deliver_to: object;
@@ -481,6 +482,7 @@ export const handlers = [
   http.post(`${base}/tickets`, async ({ request }) => {
     const u = userOf(request);
     if (!u) return problem(401, 'unauthorized', 'Sign in required');
+    if (!u.customer_id) return problem(403, 'forbidden', 'Customer account required');
     const b = (await request.json()) as {
       subject: string;
       category: string;

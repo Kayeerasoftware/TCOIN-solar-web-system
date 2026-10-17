@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCompanyProfile } from '@/hooks/useCompanyProfile';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
