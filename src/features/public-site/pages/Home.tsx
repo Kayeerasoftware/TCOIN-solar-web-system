@@ -262,42 +262,9 @@ function HeroTicker() {
 }
 
 function AiSystemShowcase() {
-  const [missing, setMissing] = useState(false);
   return (
     <figure className="th-ai">
-      {!missing && (
-        <img
-          src={AI_SYSTEM_IMAGE}
-          alt="Completed TCOIN Solar system (AI-generated illustration)"
-          onError={() => setMissing(true)}
-        />
-      )}
-      {missing && (
-        <div
-          className="th-ai-ph"
-          role="img"
-          aria-label="Placeholder for an AI-generated image of a perfect completed solar system"
-        >
-          <svg viewBox="0 0 160 110" width="150" height="103" aria-hidden>
-            <circle cx="132" cy="22" r="13" fill="#F5A623" />
-            {[0, 1, 2].map((r) =>
-              [0, 1, 2, 3].map((c) => (
-                <polygon
-                  key={`${r}-${c}`}
-                  points={`${18 + c * 31 - r * 5},${48 + r * 17} ${46 + c * 31 - r * 5},${48 + r * 17} ${42 + c * 31 - r * 5},${62 + r * 17} ${14 + c * 31 - r * 5},${62 + r * 17}`}
-                  fill="rgba(74,222,128,.22)"
-                  stroke="#4ade80"
-                  strokeWidth="1.2"
-                />
-              )),
-            )}
-          </svg>
-          <strong>AI-generated completed solar system</strong>
-          <span>
-            Placeholder. Add your image as <code>public/hero/ai-solar-system.jpg</code>
-          </span>
-        </div>
-      )}
+      <img src={AI_SYSTEM_IMAGE} alt="Completed TCOIN Solar system" />
     </figure>
   );
 }
