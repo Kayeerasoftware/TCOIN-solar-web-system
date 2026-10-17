@@ -8,9 +8,13 @@ import '@/styles/globals.css';
 initSentry();
 
 async function start() {
-  if (import.meta.env.VITE_ENABLE_MOCKS === 'true') {
-    const { worker } = await import('@/mocks/browser');
-    await worker.start({ onUnhandledRequest: 'bypass' });
+  if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCKS === 'true') {
+    try {
+      const { worker } = await import('@/mocks/browser');
+      await worker.start({ onUnhandledRequest: 'bypass' });
+    } catch (error) {
+      console.error('Mock service worker failed to start; continuing without mocks.', error);
+    }
   }
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
