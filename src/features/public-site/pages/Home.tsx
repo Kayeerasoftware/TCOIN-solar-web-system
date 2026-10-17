@@ -187,8 +187,8 @@ const PROJECT_TILES = [
   { src: '/Field photos/showin system stright.jpg', label: 'System, front view' },
 ];
 
-/** Box 8: put your AI-generated image of a perfect completed system here (see the placeholder text on screen). */
-const AI_SYSTEM_IMAGE = '/brand/Hybrid Solar System Infographic.png';
+/** Box 8: a real TCOIN field photo of a solar installation. */
+const HERO_SYSTEM_IMAGE = '/brand/Hybrid Solar System Infographic.png';
 
 /** Box 9: bold words and descriptions that appear one after another in the same place. */
 const HERO_SLIDES: { words: string[]; accent: number[]; desc: string }[] = [
@@ -261,10 +261,10 @@ function HeroTicker() {
   );
 }
 
-function AiSystemShowcase() {
+function HeroSystemShowcase() {
   return (
-    <figure className="th-ai">
-      <img src={AI_SYSTEM_IMAGE} alt="Completed TCOIN Solar system" />
+    <figure className="th-image-box">
+      <img src={HERO_SYSTEM_IMAGE} alt="TCOIN technicians installing solar panels" />
     </figure>
   );
 }
@@ -314,22 +314,17 @@ const HERO_CSS = `
     opacity: 0.6; }
   .th-brand-char { display: inline-block; color: rgba(255,255,255,0.5); }
   .th-brand-space { display: inline-block; width: .28em; }
-  .th-ai { grid-column: 1; grid-row: 2 / 4; }
+  .th-image-box { grid-column: 1; grid-row: 2 / 4; }
   .th-solar-row { grid-column: 2; grid-row: 2; align-self: start; padding-top: 18px; container-type: inline-size; }
   .th-center { grid-column: 2; grid-row: 3; display: flex; flex-direction: column; gap: 12px; min-height: 0; align-self: end; }
   .th-calc { grid-column: 3; grid-row: 2 / 4; align-self: stretch; }
 
   /* box 8 */
-  .th-ai { position: relative; margin: 0; min-height: 0; border-radius: 22px; overflow: hidden;
+  .th-image-box { position: relative; margin: 0; min-height: 0; border-radius: 22px; overflow: hidden;
     border: 1px solid rgba(255,255,255,.18); box-shadow: 0 20px 50px rgba(0,0,0,.5);
     background: linear-gradient(160deg, #10301b, #06150b); }
-  .th-ai > img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .th-ai-ph { position: absolute; inset: 14px; border: 2px dashed rgba(74,222,128,.45); border-radius: 16px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-    text-align: center; padding: 1rem; color: rgba(255,255,255,.8); font-size: .85rem; }
-  .th-ai-ph strong { color: #4ade80; font-size: 1rem; }
-  .th-ai-ph code { background: rgba(255,255,255,.1); padding: 1px 6px; border-radius: 4px; }
-  .th-ai figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 28px 16px 12px; font-size: .78rem;
+  .th-image-box > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .th-image-box figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 28px 16px 12px; font-size: .78rem;
     color: rgba(255,255,255,.85); background: linear-gradient(to top, rgba(0,0,0,.75), transparent); pointer-events: none; }
   .th-badge { position: absolute; top: 14px; left: 14px; display: inline-flex; align-items: center; gap: 8px;
     border-radius: 999px; border: 1px solid rgba(245,166,35,.45); background: rgba(0,0,0,.45);
@@ -416,9 +411,9 @@ const HERO_CSS = `
   @media (max-width: 1100px) {
     .th-hero { height: auto; }
     .th-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; padding-top: 100px; gap: 18px; }
-    .th-title, .th-ai, .th-center, .th-calc { grid-column: 1; grid-row: auto; }
+    .th-title, .th-image-box, .th-center, .th-calc { grid-column: 1; grid-row: auto; }
     .th-title { overflow: hidden; }
-    .th-ai { height: 300px; }
+    .th-image-box { height: 300px; }
     .th-center { min-height: 340px; }
     .th-calc { max-width: 340px; width: 100%; justify-self: center; }
     .th-tile { height: 110px; }
@@ -534,8 +529,8 @@ export default function Home() {
             </h2>
           </div>
 
-          {/* box 8: AI-generated completed system (placeholder until the image is added) */}
-          <AiSystemShowcase />
+          {/* box 8: TCOIN field photo */}
+          <HeroSystemShowcase />
 
           {/* SOLAR DEPT — decoupled, sits in its own row */}
           <div className="th-solar-row">
