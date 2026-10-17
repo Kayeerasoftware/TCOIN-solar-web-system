@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api, withIdempotency } from '@/api/client';
 import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/authStore';
+import { GuestCartGate } from '../components/GuestCartGate';
 
 function fmt(n: number) {
   return n.toLocaleString('en-UG');
@@ -42,10 +44,11 @@ const input: React.CSSProperties = {
 export default function Checkout() {
   const navigate = useNavigate();
   const { lines, clear } = useCartStore();
+  const user = useAuthStore((s) => s.user);
   const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
+    name: user?.full_name ?? '',
+    email: user?.email ?? '',
+    phone: user?.phone ?? '',
     address: '',
     notes: '',
     method: 'mobile_money',
@@ -84,6 +87,7 @@ export default function Checkout() {
     }
   }
 
+  if (!user) return <GuestCartGate />;
   if (lines.length === 0) {
     navigate('/cart');
     return null;
@@ -145,6 +149,39 @@ export default function Checkout() {
             >
               1. Delivery Details
             </h2>
+            {user && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  background: '#f0f7f2',
+                  border: '1px solid #c3dfc9',
+                  borderRadius: 4,
+                  marginBottom: 14,
+                  fontSize: 12,
+                  color: '#1d6434',
+                }}
+              >
+                <span>
+                  ✓ Signed in as <strong>{user.full_name}</strong> — details pre-filled. You can edit any
+                  field below.
+                </span>
+                <Link
+                  to="/portal"
+                  style={{
+                    color: '#1d6434',
+                    fontWeight: 700,
+                    textDecoration: 'underline',
+                    marginLeft: 12,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  My Portal
+                </Link>
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={field}>
                 <label style={label}>Full name *</label>

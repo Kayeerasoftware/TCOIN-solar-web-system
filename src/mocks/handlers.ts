@@ -21,6 +21,8 @@ const problem = (
 const publicUser = (u: MockUser) => ({
   id: u.id,
   full_name: u.full_name,
+  email: u.email,
+  phone: u.phone || undefined,
   avatar: (u as MockUser & { avatar?: string | null }).avatar ?? null,
   user_type: u.user_type,
   customer_id: u.customer_id,
@@ -103,6 +105,35 @@ export const handlers = [
     return u ? HttpResponse.json(publicUser(u)) : problem(401, 'unauthorized', 'Sign in required');
   }),
   http.post(`${base}/auth/logout`, () => new HttpResponse(null, { status: 204 })),
+  http.post(`${base}/auth/register`, async ({ request }) => {
+    const { full_name, email, password } = (await request.json()) as {
+      full_name: string;
+      email: string;
+      password: string;
+    };
+    if (!full_name || !email || !password)
+      return problem(422, 'validation_failed', 'Validation failed', [
+        { field: 'email', message: 'All fields are required' },
+      ]);
+    if (db.users.find((u) => u.email === email.toLowerCase()))
+      return problem(409, 'conflict', 'An account with that email already exists');
+    const id = `u-${Date.now()}`;
+    const customerId = `c-${Date.now()}`;
+    const newUser: MockUser = {
+      id,
+      email: email.toLowerCase(),
+      phone: '',
+      password,
+      full_name,
+      avatar: null,
+      user_type: 'customer',
+      customer_id: customerId,
+      roles: ['customer'],
+      permissions: [],
+    };
+    db.users.push(newUser);
+    return HttpResponse.json(tokensFor(newUser), { status: 201 });
+  }),
   // ---- public
   http.get(`${base}/company-profile`, () => HttpResponse.json(FALLBACK_PROFILE)),
   http.get(`${base}/amount-in-words`, ({ request }) => {

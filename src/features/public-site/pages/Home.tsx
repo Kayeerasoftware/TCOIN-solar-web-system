@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCompanyProfile } from '@/hooks/useCompanyProfile';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useAuthStore } from '@/store/authStore';
 
 const SERVICES = [
   {
@@ -466,6 +467,9 @@ export default function Home() {
   useDocumentTitle('Home');
   const navigate = useNavigate();
   const p = useCompanyProfile();
+  const user = useAuthStore((s) => s.user);
+  const isCustomer = user?.user_type === 'customer';
+  const calcTarget = isCustomer ? '/portal/quotes' : '/calculator';
   const [bill, setBill] = useState('');
   const [tIdx, setTIdx] = useState(0);
 
@@ -577,7 +581,7 @@ export default function Home() {
           <div className="th-center">
             <HeroTicker />
             <div className="th-ctas">
-              <Link to="/calculator" className="th-cta th-cta-main">
+              <Link to={calcTarget} className="th-cta th-cta-main">
                 Get Free Estimate →
               </Link>
               <Link to="/store" className="th-cta th-cta-ghost">
@@ -713,7 +717,7 @@ export default function Home() {
                 style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
                 onSubmit={(e) => {
                   e.preventDefault();
-                  navigate(`/calculator?bill=${bill}`);
+                  navigate(isCustomer ? `/portal/quotes?bill=${bill}` : `/calculator?bill=${bill}`);
                 }}
               >
                 <div style={{ position: 'relative', marginBottom: '8px' }}>
@@ -1594,7 +1598,7 @@ export default function Home() {
               Request a Free Quote →
             </Link>
             <Link
-              to="/calculator"
+              to={calcTarget}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',

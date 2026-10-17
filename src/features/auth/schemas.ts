@@ -7,6 +7,13 @@ export const loginSchema = z.object({
 });
 export type LoginForm = z.infer<typeof loginSchema>;
 
+export const registerSchema = z.object({
+  full_name: requiredText('Full name'),
+  email: z.string().trim().email('Enter a valid email'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+export type RegisterForm = z.infer<typeof registerSchema>;
+
 export const phoneSchema = z.object({ phone: requiredText('Phone number') });
 export const codeSchema = z.object({
   code: z

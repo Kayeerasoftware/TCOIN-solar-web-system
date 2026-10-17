@@ -2,6 +2,7 @@ import { NavLink, Outlet, Link } from 'react-router-dom';
 import { DoubleRule } from '@/components/brand/DoubleRule';
 import { Logo } from '@/components/brand/Logo';
 import { useAuthStore } from '@/store/authStore';
+import { signOut } from '@/app/router/guards';
 
 export const AVATARS: Record<string, string> = {
   'u-admin': '/profile/kayeera-nathan.png',
@@ -43,7 +44,7 @@ const linkActive = 'bg-[#1D6434] text-white';
 const linkIdle = 'text-[#3c4540] hover:bg-[#eef3ee] hover:text-[#1D6434]';
 
 export function PortalLayout() {
-  const { user, clear } = useAuthStore();
+  const { user } = useAuthStore();
 
   const avatar = user ? (user.avatar ?? AVATARS[user.id] ?? null) : null;
   const initials =
@@ -110,7 +111,7 @@ export function PortalLayout() {
                 initials
               )}
             </div>
-            <button className="text-xs text-brand-green underline" onClick={clear}>
+            <button onClick={signOut} className="text-xs font-bold underline" style={{ color: '#e53935' }}>
               Sign out
             </button>
           </div>

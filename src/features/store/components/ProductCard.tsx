@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/authStore';
 import type { Product } from '@/types/api';
 
 export type { Product };
@@ -69,6 +70,8 @@ function Stars({ rating }: { rating: number }) {
 
 export function ProductCard({ product }: { product: Product }) {
   const add = useCartStore((s) => s.add);
+  const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
   const [added, setAdded] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [wished, setWished] = useState(false);
@@ -83,6 +86,10 @@ export function ProductCard({ product }: { product: Product }) {
   function quickAdd(e: React.MouseEvent) {
     e.preventDefault();
     if (!v || !inStock) return;
+    if (!user) {
+      navigate('/login', { state: { from: `/store/${product.slug}` } });
+      return;
+    }
     add({
       variant_id: v.id,
       sku: v.sku,
@@ -244,7 +251,7 @@ export function ProductCard({ product }: { product: Product }) {
               letterSpacing: '0.03em',
             }}
           >
-            {added ? '✓ ADDED TO CART' : 'ADD TO CART'}
+            {added ? '✓ ADDED TO CART' : user ? 'ADD TO CART' : 'SIGN IN TO BUY'}
           </button>
         </div>
       </div>

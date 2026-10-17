@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getProduct, listProducts } from '@/api/endpoints/catalog';
 import { qk } from '@/api/queryKeys';
 import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/authStore';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import type { Product } from '@/types/api';
 
@@ -137,6 +138,7 @@ export default function ProductDetail() {
   });
 
   const add = useCartStore((s) => s.add);
+  const user = useAuthStore((s) => s.user);
   const cartCount = useCartStore((s) => s.lines.reduce((n, l) => n + l.quantity, 0));
   const [selVariant, setSelVariant] = useState(0);
   const [qty, setQty] = useState(1);
@@ -177,6 +179,10 @@ export default function ProductDetail() {
 
   function addToCart() {
     if (!v) return;
+    if (!user) {
+      navigate('/login', { state: { from: `/store/${slug}` } });
+      return;
+    }
     add({
       variant_id: v.id,
       sku: v.sku,
@@ -190,6 +196,10 @@ export default function ProductDetail() {
 
   function buyNow() {
     if (!v) return;
+    if (!user) {
+      navigate('/login', { state: { from: `/store/${slug}` } });
+      return;
+    }
     add({
       variant_id: v.id,
       sku: v.sku,
@@ -621,7 +631,7 @@ export default function ProductDetail() {
                     transition: 'background 120ms',
                   }}
                 >
-                  🛒 Add to Cart
+                  {user ? '🛒 Add to Cart' : '🔒 Sign in to Buy'}
                 </button>
                 <button
                   onClick={buyNow}
@@ -637,7 +647,7 @@ export default function ProductDetail() {
                     cursor: 'pointer',
                   }}
                 >
-                  ⚡ Buy Now
+                  {user ? '⚡ Buy Now' : '⚡ Buy Now — Sign in first'}
                 </button>
               </>
             ) : (

@@ -45,6 +45,8 @@ export const publicRoutes: RouteObject[] = [
     element: <AuthLayout />,
     children: [
       { path: 'login', ...page(() => import('@/features/auth/pages/Login')) },
+      { path: 'register', ...page(() => import('@/features/auth/pages/Register')) },
+      { path: 'get-quote', ...page(() => import('@/features/auth/pages/GetQuote')) },
       { path: 'otp', ...page(() => import('@/features/auth/pages/OtpVerify')) },
       { path: 'mfa', ...page(() => import('@/features/auth/pages/MfaVerify')) },
       { path: 'forgot-password', ...page(() => import('@/features/auth/pages/ForgotPassword')) },

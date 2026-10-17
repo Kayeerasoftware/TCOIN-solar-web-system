@@ -66,6 +66,10 @@ export default function Login() {
         <Link to="/forgot-password" className="text-brand-green underline">
           Forgot password
         </Link>
+        {' | '}
+        <Link to="/register" state={{ from }} className="text-brand-green underline">
+          Create account
+        </Link>
       </p>
     </form>
   );

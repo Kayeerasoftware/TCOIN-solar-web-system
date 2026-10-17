@@ -26,3 +26,9 @@ export function RedirectIfAuthed({ children }: { children: ReactNode }) {
   if (user) return <Navigate to={user.user_type === 'customer' ? '/portal' : '/console'} replace />;
   return <>{children}</>;
 }
+
+/** Clears the session and hard-navigates to home, bypassing all route guards. */
+export function signOut() {
+  useAuthStore.getState().clear();
+  window.location.href = '/';
+}

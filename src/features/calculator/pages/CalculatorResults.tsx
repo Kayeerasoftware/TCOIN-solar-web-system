@@ -2,11 +2,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useMemo, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { submitLead } from '@/api/endpoints/crm';
 import { applyServerErrors } from '@/lib/forms';
 import { formatNumber } from '@/lib/money';
 import { SizingInputError } from '@/sizing';
+import { useAuthStore } from '@/store/authStore';
 import { runEstimate } from '../estimate';
 import { leadCaptureSchema, type LeadCaptureForm } from '../schemas';
 import type { CalculatorInput } from '../types';
@@ -25,6 +26,8 @@ const issueDate = new Intl.DateTimeFormat('en-GB', {
 
 export default function CalculatorResults() {
   const input = (useLocation().state as { input?: CalculatorInput } | null)?.input;
+  const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
   const result = useMemo(() => {
     if (!input) return null;
     try {
@@ -121,9 +124,13 @@ export default function CalculatorResults() {
   return (
     <main className="qr-stage">
       <div className="qr-actions">
-        <button className="qr-glass-btn" type="button" onClick={() => setSavePrompt(true)}>
+        <button
+          className="qr-glass-btn"
+          type="button"
+          onClick={() => (user ? navigate('/portal/quotes') : setSavePrompt(true))}
+        >
           <span>Save estimate</span>
-          <span className="qr-btn-mark">↓</span>
+          <span className="qr-btn-mark">{user ? '→' : '↓'}</span>
         </button>
         <button className="qr-print-btn" type="button" onClick={() => window.print()}>
           Print / PDF
@@ -139,9 +146,14 @@ export default function CalculatorResults() {
             <button className="qr-save-popup-close" onClick={() => setSavePrompt(false)}>
               ✕
             </button>
-            <p>Sign in to save your estimate</p>
+            <p style={{ fontWeight: 700, marginBottom: '0.25rem' }}>Save this estimate to your account</p>
+            <p style={{ fontSize: '0.82rem', color: '#5A6878', marginBottom: '1rem' }}>
+              Create a free account (or sign in) to keep this quote, track its status, and request a formal
+              proposal from our engineers.
+            </p>
             <Link
               to="/login"
+              state={{ from: '/portal/quotes' }}
               className="qr-submit-btn"
               style={{
                 display: 'flex',
@@ -151,6 +163,21 @@ export default function CalculatorResults() {
               }}
             >
               Sign in
+            </Link>
+            <Link
+              to="/register"
+              state={{ from: '/portal/quotes' }}
+              className="qr-submit-btn"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textDecoration: 'none',
+                marginTop: '0.5rem',
+                background: 'var(--color-brand-indigo, #3B3A93)',
+              }}
+            >
+              Create account
             </Link>
           </div>
         </div>
@@ -409,14 +436,40 @@ export default function CalculatorResults() {
                     <button type="submit" className="qr-submit-btn" disabled={send.isPending}>
                       {send.isPending ? 'Sending…' : 'Send me the detailed quote'}
                     </button>
-                    <span className="qr-form-or">OR</span>
-                    <Link
-                      to="/login"
-                      className="qr-submit-btn"
-                      style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}
-                    >
-                      Sign in to serve yourself →
-                    </Link>
+                    <span className="qr-form-or">OR manage your quote yourself</span>
+                    {user ? (
+                      <Link
+                        to="/portal/quotes"
+                        className="qr-submit-btn"
+                        style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}
+                      >
+                        Go to my quotes →
+                      </Link>
+                    ) : (
+                      <>
+                        <Link
+                          to="/login"
+                          state={{ from: '/portal/quotes' }}
+                          className="qr-submit-btn"
+                          style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}
+                        >
+                          Sign in to your account →
+                        </Link>
+                        <Link
+                          to="/register"
+                          state={{ from: '/portal/quotes' }}
+                          className="qr-submit-btn"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            textDecoration: 'none',
+                            background: 'var(--color-brand-indigo, #3B3A93)',
+                          }}
+                        >
+                          Create a free account →
+                        </Link>
+                      </>
+                    )}
                   </div>
                 </form>
               </div>

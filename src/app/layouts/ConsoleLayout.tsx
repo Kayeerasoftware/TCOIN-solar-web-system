@@ -4,6 +4,7 @@ import { Logo } from '@/components/brand/Logo';
 import { NotPermitted } from '@/components/feedback/NotPermitted';
 import { consoleMenu, visibleItems } from '@/config/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { signOut } from '@/app/router/guards';
 import type { RouteHandle } from '@/app/router/helpers';
 
 const AVATARS: Record<string, string> = {
@@ -11,7 +12,7 @@ const AVATARS: Record<string, string> = {
 };
 
 export function ConsoleLayout() {
-  const { user, hasPermission, clear } = useAuthStore();
+  const { user, hasPermission } = useAuthStore();
   const matches = useMatches();
   const required = matches
     .map((m) => (m.handle as RouteHandle | undefined)?.permission)
@@ -61,7 +62,7 @@ export function ConsoleLayout() {
             </div>
             <span className="text-sm">
               {user?.full_name}{' '}
-              <button className="ml-2 text-brand-green underline" onClick={clear}>
+              <button onClick={signOut} className="ml-2 text-brand-green underline text-sm">
                 Sign out
               </button>
             </span>

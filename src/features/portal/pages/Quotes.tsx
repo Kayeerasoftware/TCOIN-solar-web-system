@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -922,6 +922,8 @@ function MyQuotesTab({
 
 export default function Quotes() {
   const [tab, setTab] = useState<Tab>('maker');
+  const [searchParams] = useSearchParams();
+  const incomingBill = searchParams.get('bill') ?? undefined;
 
   // Sizing result flows from "Size a System" → "Sized Systems" → "Get a Free Quotation"
   const [sizingOutput, setSizingOutput] = useState<SizingOutput | null>(null);
@@ -1096,7 +1098,9 @@ export default function Quotes() {
                   systemType: sizingOutput.systemType,
                   clientName: sizingOutput.clientName,
                 }
-              : undefined
+              : incomingBill
+                ? { mode: 'bill', bill: incomingBill }
+                : undefined
           }
         />
       )}

@@ -4,6 +4,8 @@ import { DoubleRule } from '@/components/brand/DoubleRule';
 import { Logo } from '@/components/brand/Logo';
 import { useCompanyProfile } from '@/hooks/useCompanyProfile';
 import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/authStore';
+import { signOut } from '@/app/router/guards';
 
 const SERVICES = [
   {
@@ -33,7 +35,7 @@ const SERVICES = [
 ];
 
 const NAV_LINKS = [
-  { label: 'Calculator', to: '/calculator' },
+  { label: 'Calculator', to: 'CALC' },
   { label: 'Store/Shop', to: '/store' },
   { label: 'Projects', to: '/projects' },
   { label: 'About', to: '/about' },
@@ -42,6 +44,8 @@ const NAV_LINKS = [
 
 export function PublicHeader({ alwaysSolid = false }: { alwaysSolid?: boolean }) {
   const p = useCompanyProfile();
+  const user = useAuthStore((s) => s.user);
+  const calcTarget = user?.user_type === 'customer' ? '/portal/quotes' : '/calculator';
   const cartCount = useCartStore((s) => s.lines.reduce((n, l) => n + l.quantity, 0));
   const [scrolled, setScrolled] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
@@ -294,7 +298,7 @@ export function PublicHeader({ alwaysSolid = false }: { alwaysSolid?: boolean })
                     </p>
                   </div>
                   <Link
-                    to="/contact"
+                    to="/get-quote"
                     onClick={() => setServicesOpen(false)}
                     style={{
                       display: 'inline-flex',
@@ -389,7 +393,7 @@ export function PublicHeader({ alwaysSolid = false }: { alwaysSolid?: boolean })
                   >
                     <span style={{ fontSize: '0.72rem', color: '#9AA3AE' }}>Not sure what you need?</span>
                     <Link
-                      to="/calculator"
+                      to={calcTarget}
                       onClick={() => setServicesOpen(false)}
                       style={{
                         fontSize: '0.72rem',
@@ -410,7 +414,7 @@ export function PublicHeader({ alwaysSolid = false }: { alwaysSolid?: boolean })
             {NAV_LINKS.map((m) => (
               <NavLink
                 key={m.to}
-                to={m.to}
+                to={m.to === 'CALC' ? calcTarget : m.to}
                 className={({ isActive }) =>
                   `nav-link px-4 py-2 rounded-xl text-sm font-semibold ${
                     isActive
@@ -463,7 +467,7 @@ export function PublicHeader({ alwaysSolid = false }: { alwaysSolid?: boolean })
                   d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
                 />
               </svg>
-              {cartCount > 0 && (
+              {user && cartCount > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#1D6434] text-[9px] font-bold text-white">
                   {cartCount}
                 </span>
@@ -475,41 +479,69 @@ export function PublicHeader({ alwaysSolid = false }: { alwaysSolid?: boolean })
               style={{ background: solid ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)' }}
             />
 
-            <Link
-              to="/login"
-              className="nav-outline hidden sm:inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold"
-              style={
-                solid
-                  ? { border: '1.5px solid #D9DEE5', color: '#14202E' }
-                  : {
-                      border: '1.5px solid rgba(255,255,255,0.3)',
-                      color: '#fff',
-                      background: 'rgba(255,255,255,0.1)',
-                    }
-              }
-            >
-              Sign in
-            </Link>
-
-            <Link
-              to="/contact"
-              className="nav-cta hidden md:inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold text-white"
-              style={{
-                background: 'linear-gradient(135deg,#1D6434 0%,#155228 100%)',
-                boxShadow: '0 2px 8px rgba(29,100,52,0.3)',
-              }}
-            >
-              Free Quote
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.5}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  to={user.user_type === 'customer' ? '/portal' : '/console'}
+                  className="nav-outline hidden sm:inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold"
+                  style={
+                    solid
+                      ? { border: '1.5px solid #D9DEE5', color: '#14202E' }
+                      : {
+                          border: '1.5px solid rgba(255,255,255,0.3)',
+                          color: '#fff',
+                          background: 'rgba(255,255,255,0.1)',
+                        }
+                  }
+                >
+                  {user.user_type === 'customer' ? 'My Portal' : 'Console'}
+                </Link>
+                <button
+                  onClick={signOut}
+                  className="nav-cta hidden md:inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold text-white"
+                  style={{ background: '#e53935', boxShadow: '0 2px 8px rgba(229,57,53,0.3)' }}
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="nav-outline hidden sm:inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold"
+                  style={
+                    solid
+                      ? { border: '1.5px solid #D9DEE5', color: '#14202E' }
+                      : {
+                          border: '1.5px solid rgba(255,255,255,0.3)',
+                          color: '#fff',
+                          background: 'rgba(255,255,255,0.1)',
+                        }
+                  }
+                >
+                  Sign in
+                </Link>
+                <Link
+                  to="/get-quote"
+                  className="nav-cta hidden md:inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold text-white"
+                  style={{
+                    background: 'linear-gradient(135deg,#1D6434 0%,#155228 100%)',
+                    boxShadow: '0 2px 8px rgba(29,100,52,0.3)',
+                  }}
+                >
+                  Free Quote
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </Link>
+              </>
+            )}
 
             {/* Hamburger — animates to X */}
             <button
@@ -779,7 +811,7 @@ export function PublicHeader({ alwaysSolid = false }: { alwaysSolid?: boolean })
             {NAV_LINKS.map((m) => (
               <NavLink
                 key={m.to}
-                to={m.to}
+                to={m.to === 'CALC' ? calcTarget : m.to}
                 style={({ isActive }) => ({
                   display: 'flex',
                   alignItems: 'center',
@@ -823,39 +855,81 @@ export function PublicHeader({ alwaysSolid = false }: { alwaysSolid?: boolean })
               flexShrink: 0,
             }}
           >
-            <Link
-              to="/contact"
-              style={{
-                display: 'block',
-                textAlign: 'center',
-                borderRadius: '10px',
-                padding: '12px',
-                fontSize: '0.88rem',
-                fontWeight: 800,
-                color: '#fff',
-                textDecoration: 'none',
-                background: 'linear-gradient(135deg,#1D6434 0%,#155228 100%)',
-                boxShadow: '0 4px 14px rgba(29,100,52,0.28)',
-              }}
-            >
-              Get a Free Quote →
-            </Link>
-            <Link
-              to="/login"
-              style={{
-                display: 'block',
-                textAlign: 'center',
-                borderRadius: '10px',
-                padding: '11px',
-                fontSize: '0.88rem',
-                fontWeight: 700,
-                color: '#14202E',
-                textDecoration: 'none',
-                border: '1.5px solid #D9DEE5',
-              }}
-            >
-              Sign in
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  to={user.user_type === 'customer' ? '/portal' : '/console'}
+                  style={{
+                    display: 'block',
+                    textAlign: 'center',
+                    borderRadius: '10px',
+                    padding: '12px',
+                    fontSize: '0.88rem',
+                    fontWeight: 800,
+                    color: '#fff',
+                    textDecoration: 'none',
+                    background: 'linear-gradient(135deg,#1D6434 0%,#155228 100%)',
+                    boxShadow: '0 4px 14px rgba(29,100,52,0.28)',
+                  }}
+                >
+                  {user.user_type === 'customer' ? 'My Portal →' : 'Console →'}
+                </Link>
+                <button
+                  onClick={signOut}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    textAlign: 'center',
+                    borderRadius: '10px',
+                    padding: '11px',
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
+                    color: '#fff',
+                    background: '#e53935',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/get-quote"
+                  style={{
+                    display: 'block',
+                    textAlign: 'center',
+                    borderRadius: '10px',
+                    padding: '12px',
+                    fontSize: '0.88rem',
+                    fontWeight: 800,
+                    color: '#fff',
+                    textDecoration: 'none',
+                    background: 'linear-gradient(135deg,#1D6434 0%,#155228 100%)',
+                    boxShadow: '0 4px 14px rgba(29,100,52,0.28)',
+                  }}
+                >
+                  Get a Free Quote →
+                </Link>
+                <Link
+                  to="/login"
+                  style={{
+                    display: 'block',
+                    textAlign: 'center',
+                    borderRadius: '10px',
+                    padding: '11px',
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
+                    color: '#14202E',
+                    textDecoration: 'none',
+                    border: '1.5px solid #D9DEE5',
+                  }}
+                >
+                  Sign in
+                </Link>
+              </>
+            )}
             <a
               href={`tel:${p.mobile}`}
               style={{

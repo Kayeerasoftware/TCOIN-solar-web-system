@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/authStore';
+import { GuestCartGate } from '../components/GuestCartGate';
 
 const CATEGORY_IMG: Record<string, string> = {
   panels: '/products display/Solar-panels.jpg',
@@ -16,10 +18,13 @@ const DELIVERY_FEE = 0; // free Kampala delivery
 
 export default function Cart() {
   const { lines, setQuantity, remove, clear } = useCartStore();
+  const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const [promo, setPromo] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
   const [promoError, setPromoError] = useState('');
+
+  if (!user) return <GuestCartGate />;
 
   const subtotal = lines.reduce((s, l) => s + l.unit_price * l.quantity, 0);
   const discount = promoApplied ? Math.round(subtotal * 0.05) : 0;

@@ -43,7 +43,7 @@ export function SizeASystem({
   initialValues?: SizingInitialValues;
 }) {
   const [mode, setMode] = useState<'bill' | 'appliances'>(initialValues?.mode ?? 'bill');
-  const [bill, setBill] = useState(initialValues?.bill ?? '');
+  const [bill, setBill] = useState(formatBill(initialValues?.bill ?? ''));
   const [appliances, setAppliances] = useState<Appliance[]>(initialValues?.appliances ?? [blank()]);
   const [district, setDistrict] = useState(initialValues?.district ?? 'Kampala');
   const [systemType, setSystemType] = useState<SystemType>(initialValues?.systemType ?? 'hybrid');
